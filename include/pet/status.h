@@ -1,0 +1,13 @@
+#ifndef PET_STATUS_H
+#define PET_STATUS_H
+
+typedef enum {
+    PET_STATUS_OK = 0,
+    PET_STATUS_INVALID_ARGUMENT,
+    PET_STATUS_NOT_INITIALIZED,
+    PET_STATUS_NOT_SUPPORTED,
+    PET_STATUS_NO_MEMORY,
+    PET_STATUS_IO_ERROR
+} pet_status_t;
+
+#endif
