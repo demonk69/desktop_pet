@@ -25,4 +25,11 @@ typedef struct {
 
 void pet_esp32_board_config_init(pet_esp32_board_config_t *config);
 
+const char *pet_esp32_diag_mode_name(void);
+const char *pet_esp32_diag_transport_name(void);
+bool pet_esp32_diag_mode_is_valid(void);
+bool pet_esp32_diag_transport_is_valid(void);
+bool pet_esp32_diag_is_static(void);
+bool pet_esp32_diag_static_repeat(void);
+
 #endif

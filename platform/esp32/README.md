@@ -103,6 +103,52 @@ idf.py -D PET_LCD_SPI_FREQUENCY_HZ=40000000 \
        -D PET_LCD_BLOCK_HEIGHT=0 build flash -p /dev/ttyACM0
 ```
 
+## Diagnostic Modes
+
+Controlled visual A/B testing on the `lcd-visual-diagnosis` branch. Mode and
+transport are independent build-time selections; these switches only alter the ESP32
+runtime/display backend and never touch Pet Core, Animation, Event, Renderer, or the
+ST7789 init/rotation/RGB parameters.
+
+```sh
+idf.py -D PET_LCD_DIAG_MODE=STATIC_ONCE -D PET_LCD_DIAG_TRANSPORT=V04 build flash -p /dev/ttyACM0
+idf.py -D PET_LCD_DIAG_MODE=STATIC_ONCE -D PET_LCD_DIAG_TRANSPORT=V05 build flash -p /dev/ttyACM0
+idf.py -D PET_LCD_DIAG_MODE=STATIC_ONCE -D PET_LCD_DIAG_TRANSPORT=ROW8 build flash -p /dev/ttyACM0
+```
+
+| Mode | Behavior |
+|---|---|
+| `NONE` | Normal pet animation. Use this with `PET_LCD_DIAG_TRANSPORT` to compare animation over the same transport variants. |
+| `STATIC_ONCE` | Draws the fixed test pattern, flushes it exactly once, backlight stays on, then never touches the display again. Logs `render_count=1 flush_count=1` and periodic alive messages to prove no further flush. |
+| `STATIC_REPEAT` | Draws the same fixed test pattern once, then re-flushes the unchanged framebuffer every 100 ms at ~10 Hz. Logs `render_count=1` with a steadily increasing `flush_count`. |
+
+| Transport | LCD link |
+|---|---|
+| `DEFAULT` | Uses `PET_LCD_SPI_FREQUENCY_HZ`, `PET_LCD_STAGING_BUFFER_SIZE`, `PET_LCD_DMA_ENABLED`, and `PET_LCD_BLOCK_HEIGHT`. |
+| `V04` | 10 MHz, DMA off, 64-byte polling transactions. |
+| `V05` | 40 MHz, DMA on, 4096-byte staging. For the 115200-byte framebuffer this is 29 transactions with a final 512-byte tail. |
+| `ROW8` | 40 MHz, DMA on, 3840-byte staging, strict 8 lines/block. The 240-line panel transfers as 30 full 3840-byte blocks with no partial tail. |
+
+Startup prints `LCD DIAGNOSTIC MODE: <mode>`, `LCD DIAGNOSTIC TRANSPORT:
+<transport>`, the configured link (`LCD: SPI=... staging=... DMA=... block=...`),
+the framebuffer byte count, transaction count, final transaction length, and the
+actual SPI frequency from `spi_device_get_actual_freq`. `V05` also prints
+`final_tail=512 bytes`; `ROW8` prints `blocks=30 block_bytes=3840 partial_tail=0
+bytes`.
+
+The static diagnostic framebuffer is identical for every transport: black background,
+four corner color blocks, a central cross, a bright 32-line bottom band, and a
+separate color on the last line. GPIO7 backlight is set once after init and never
+toggled again.
+
+For a temporary animation pacing check, lower the ESP32 runtime frame period without
+changing shared code:
+
+```sh
+idf.py -D PET_LCD_DIAG_MODE=NONE -D PET_LCD_DIAG_TRANSPORT=V05 \
+       -D PET_ESP32_TARGET_FRAME_US=50000 build flash -p /dev/ttyACM0
+```
+
 ## Memory And Transfer
 
 - Framebuffer: 240 x 240 x RGB565 = 115200 bytes in PSRAM.

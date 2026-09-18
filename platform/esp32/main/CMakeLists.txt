@@ -4,6 +4,7 @@ idf_component_register(
         "pet_compiled_assets.c"
         "pet_esp32_backlight.c"
         "pet_esp32_board_config.c"
+        "pet_esp32_diag.c"
         "pet_esp32_display.c"
         "pet_esp32_runtime.c"
         "pet_esp32_time.c"
@@ -17,4 +18,7 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     PET_LCD_STAGING_BUFFER_SIZE=${PET_LCD_STAGING_BUFFER_SIZE}
     PET_LCD_DMA_ENABLED=${PET_LCD_DMA_ENABLED}
     PET_LCD_BLOCK_HEIGHT=${PET_LCD_BLOCK_HEIGHT}
+    PET_LCD_DIAG_MODE=${PET_LCD_DIAG_MODE}
+    PET_LCD_DIAG_TRANSPORT=${PET_LCD_DIAG_TRANSPORT}
+    PET_ESP32_TARGET_FRAME_US=${PET_ESP32_TARGET_FRAME_US}
 )

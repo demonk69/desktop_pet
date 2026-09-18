@@ -10,7 +10,11 @@
 #include "freertos/task.h"
 #include "pet_esp32_time.h"
 
-#define TARGET_FRAME_US 100000ULL
+#if !defined(PET_ESP32_TARGET_FRAME_US) || PET_ESP32_TARGET_FRAME_US <= 0
+#error "PET_ESP32_TARGET_FRAME_US must be a positive integer"
+#endif
+
+#define TARGET_FRAME_US   ((uint64_t)PET_ESP32_TARGET_FRAME_US)
 #define REPORT_INTERVAL_US 5000000ULL
 #define DEMO_CYCLE_MS 22000ULL
 
@@ -116,7 +120,13 @@ pet_status_t pet_esp32_runtime_run(pet_app_t *app, pet_renderer_t *renderer,
     report_start_us = run_start_us;
     previous_state = pet_app_snapshot(app).state;
     previous_animation = pet_app_snapshot(app).animation;
-    ESP_LOGI(TAG, "Runtime started: target=10 FPS, synchronous full-frame flush");
+    {
+        uint64_t target_fps_tenths = 10000000ULL / TARGET_FRAME_US;
+        ESP_LOGI(TAG,
+                 "Runtime started: target=%" PRIu64 ".%" PRIu64
+                 " FPS, synchronous full-frame flush",
+                 target_fps_tenths / 10ULL, target_fps_tenths % 10ULL);
+    }
 
     for (;;) {
         uint64_t frame_start_us = pet_esp32_time_now_us();
