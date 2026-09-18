@@ -33,7 +33,8 @@ int main(void)
     event = timer_event(1000U);
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_BLINK);
-    event = (pet_event_t){ .type = PET_EVENT_ANIMATION_DONE };
+    event = (pet_event_t){ .type = PET_EVENT_ANIMATION_DONE,
+                           .data.code = PET_ANIM_BLINK };
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_IDLE);
 
@@ -46,9 +47,24 @@ int main(void)
     event = (pet_event_t){ .type = PET_EVENT_MESSAGE };
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_SLEEP);
+    event = (pet_event_t){ .type = PET_EVENT_LOOK, .data.look_direction = 0 };
+    assert(!pet_core_handle_event(&core, &config, &event));
     event = (pet_event_t){ .type = PET_EVENT_WAKE };
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_IDLE);
+
+    event = (pet_event_t){ .type = PET_EVENT_LOOK,
+                           .data.look_direction = PET_LOOK_LEFT };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_LOOK_LEFT);
+    event.data.look_direction = PET_LOOK_RIGHT;
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_LOOK_RIGHT);
+    event.data.look_direction = 0;
+    assert(!pet_core_handle_event(&core, &config, &event));
+    event = (pet_event_t){ .type = PET_EVENT_HAPPY };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_HAPPY);
 
     event = (pet_event_t){ .type = PET_EVENT_COUNT };
     assert(!pet_core_handle_event(&core, &config, &event));

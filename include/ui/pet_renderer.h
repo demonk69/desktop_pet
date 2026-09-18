@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "animation/pet_asset_provider.h"
 #include "hal/display.h"
 #include "pet/pet_app.h"
 #include "pet/status.h"
@@ -16,11 +17,14 @@ typedef struct {
 
 typedef struct {
     pet_display_t *display;
+    const pet_asset_provider_t *assets;
     pet_renderer_theme_t theme;
 } pet_renderer_t;
 
 pet_status_t pet_renderer_init(pet_renderer_t *renderer, pet_display_t *display,
                                const pet_renderer_theme_t *theme);
+void pet_renderer_set_asset_provider(pet_renderer_t *renderer,
+                                     const pet_asset_provider_t *assets);
 pet_status_t pet_renderer_render(pet_renderer_t *renderer,
                                  const pet_app_snapshot_t *snapshot);
 

@@ -90,3 +90,11 @@ bool pet_animation_take_completed(pet_animation_player_t *player,
     player->completion_pending = false;
     return true;
 }
+
+const char *pet_animation_name(pet_animation_id_t id)
+{
+    static const char *const names[PET_ANIM_COUNT] = {
+        "boot", "idle", "blink", "look_left", "look_right", "happy", "sleep"
+    };
+    return id >= PET_ANIM_BOOT && id < PET_ANIM_COUNT ? names[id] : "invalid";
+}

@@ -1,0 +1,13 @@
+# asset_id relative_path
+1 boot/boot_0.ppm
+2 boot/boot_1.ppm
+3 idle/idle.ppm
+4 blink/half.ppm
+5 blink/closed.ppm
+6 look_left/look_left.ppm
+7 look_right/look_right.ppm
+8 happy/happy_0.ppm
+9 happy/happy_1.ppm
+10 sleep/sleep_0.ppm
+11 sleep/sleep_1.ppm
+12 idle/idle_1.ppm

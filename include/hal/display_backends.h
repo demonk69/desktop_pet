@@ -4,7 +4,7 @@
 #include "config/pet_config.h"
 #include "hal/display.h"
 
-/* HW_VERIFY: these factories remain unsupported until the target SDK and pins are known. */
+/* Generic unsupported stubs; real platform factories live with their platform target. */
 pet_status_t pet_display_create_spi_stub(pet_display_t *display,
                                          const pet_hardware_config_t *config);
 pet_status_t pet_display_create_i8080_stub(pet_display_t *display,

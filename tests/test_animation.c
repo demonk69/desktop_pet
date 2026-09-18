@@ -40,6 +40,7 @@ int main(void)
     assert(!pet_animation_take_completed(&player, NULL));
     assert(pet_play_animation(&player, PET_ANIM_HAPPY) == PET_STATUS_NOT_SUPPORTED);
     assert(pet_play_animation(&player, PET_ANIM_COUNT) == PET_STATUS_INVALID_ARGUMENT);
+    assert(pet_animation_name((pet_animation_id_t)-1)[0] == 'i');
 
     (void)printf("test_animation: ok\n");
     return 0;

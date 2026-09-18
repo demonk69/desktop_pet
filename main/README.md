@@ -1,5 +1,5 @@
 # Embedded Entry Point
 
-The target SDK and MCU are `HW_VERIFY`, so V0.1 does not provide a fake embedded
-`main`. After the board is identified, this directory will own SDK startup, construct
-the selected HAL backends, and run the same `pet_app_t` used by the simulator.
+The verified embedded target is ESP32-S3 with ESP-IDF 6.1. Its real entry point and
+HAL backends live in `platform/esp32/`; this directory remains a platform-neutral
+placeholder for any future embedded target rather than duplicating `app_main`.

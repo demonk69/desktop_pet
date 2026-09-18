@@ -9,7 +9,7 @@ void pet_config_set_development_defaults(pet_config_t *config)
     config->app.core.idle_action_interval_ms = 1800U;
     config->app.animations = pet_builtin_animation_catalog();
 
-    /* Simulator canvas only. Physical LCD dimensions remain HW_VERIFY. */
+    /* Host defaults; the verified ESP32 board config overrides hardware fields. */
     config->hardware.width = 240U;
     config->hardware.height = 240U;
     config->hardware.x_offset = PET_VALUE_HW_VERIFY;

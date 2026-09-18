@@ -5,6 +5,6 @@ pet_status_t pet_display_create_st7789_stub(pet_display_t *display,
 {
     (void)display;
     (void)config;
-    /* HW_VERIFY: initialization sequence, offsets, color order, and reset timing. */
+    /* The verified ESP-IDF ST7789 implementation lives under platform/esp32. */
     return PET_STATUS_NOT_SUPPORTED;
 }

@@ -54,6 +54,7 @@ const pet_animation_frame_t *pet_animation_current_frame(const pet_animation_pla
 pet_animation_id_t pet_animation_current_id(const pet_animation_player_t *player);
 bool pet_animation_take_completed(pet_animation_player_t *player,
                                   pet_animation_id_t *completed_id);
+const char *pet_animation_name(pet_animation_id_t id);
 
 const pet_animation_catalog_t *pet_builtin_animation_catalog(void);
 

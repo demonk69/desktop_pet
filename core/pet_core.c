@@ -67,8 +67,22 @@ bool pet_core_handle_event(pet_core_t *core,
         return true;
     case PET_EVENT_BUTTON:
     case PET_EVENT_MESSAGE:
+    case PET_EVENT_HAPPY:
         if (core->state != PET_STATE_SLEEP) {
             enter_state(core, PET_STATE_HAPPY);
+        }
+        return true;
+    case PET_EVENT_LOOK:
+        if (event->data.look_direction != PET_LOOK_LEFT &&
+            event->data.look_direction != PET_LOOK_RIGHT) {
+            return false;
+        }
+        if (core->state != PET_STATE_SLEEP) {
+            if (event->data.look_direction == PET_LOOK_LEFT) {
+                enter_state(core, PET_STATE_LOOK_LEFT);
+            } else {
+                enter_state(core, PET_STATE_LOOK_RIGHT);
+            }
         }
         return true;
     case PET_EVENT_SLEEP:
@@ -80,9 +94,10 @@ bool pet_core_handle_event(pet_core_t *core,
         }
         return true;
     case PET_EVENT_ANIMATION_DONE:
-        if (core->state == PET_STATE_BOOT || core->state == PET_STATE_BLINK ||
-            core->state == PET_STATE_LOOK_LEFT || core->state == PET_STATE_LOOK_RIGHT ||
-            core->state == PET_STATE_HAPPY) {
+        if ((pet_animation_id_t)event->data.code == state_animations[core->state] &&
+            (core->state == PET_STATE_BOOT || core->state == PET_STATE_BLINK ||
+             core->state == PET_STATE_LOOK_LEFT || core->state == PET_STATE_LOOK_RIGHT ||
+             core->state == PET_STATE_HAPPY)) {
             enter_state(core, PET_STATE_IDLE);
         }
         return true;

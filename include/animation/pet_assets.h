@@ -15,7 +15,8 @@ enum {
     PET_ASSET_HAPPY_0,
     PET_ASSET_HAPPY_1,
     PET_ASSET_SLEEP_0,
-    PET_ASSET_SLEEP_1
+    PET_ASSET_SLEEP_1,
+    PET_ASSET_IDLE_1
 };
 
 #endif

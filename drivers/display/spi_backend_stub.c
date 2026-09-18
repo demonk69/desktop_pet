@@ -5,6 +5,6 @@ pet_status_t pet_display_create_spi_stub(pet_display_t *display,
 {
     (void)display;
     (void)config;
-    /* HW_VERIFY: bind to the selected MCU SDK SPI API after board identification. */
+    /* The real ESP-IDF implementation lives under platform/esp32. */
     return PET_STATUS_NOT_SUPPORTED;
 }

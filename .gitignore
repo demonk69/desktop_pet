@@ -1,3 +1,6 @@
 /build/
-*.ppm
+/platform/esp32/build/
+/platform/esp32/sdkconfig
+/platform/esp32/sdkconfig.old
+/pet_simulator.ppm
 compile_commands.json
