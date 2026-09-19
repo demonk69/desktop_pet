@@ -66,6 +66,12 @@ bool pet_core_handle_event(pet_core_t *core,
         }
         return true;
     case PET_EVENT_BUTTON:
+        if (core->state == PET_STATE_SLEEP) {
+            enter_state(core, PET_STATE_IDLE);
+        } else {
+            enter_state(core, PET_STATE_HAPPY);
+        }
+        return true;
     case PET_EVENT_MESSAGE:
     case PET_EVENT_HAPPY:
         if (core->state != PET_STATE_SLEEP) {
@@ -83,6 +89,20 @@ bool pet_core_handle_event(pet_core_t *core,
             } else {
                 enter_state(core, PET_STATE_LOOK_RIGHT);
             }
+        }
+        return true;
+    case PET_EVENT_NAV_NEXT:
+        if (core->state == PET_STATE_SLEEP) {
+            enter_state(core, PET_STATE_IDLE);
+        } else if (core->state == PET_STATE_IDLE) {
+            enter_state(core, PET_STATE_LOOK_RIGHT);
+        }
+        return true;
+    case PET_EVENT_NAV_PREV:
+        if (core->state == PET_STATE_SLEEP) {
+            enter_state(core, PET_STATE_IDLE);
+        } else if (core->state == PET_STATE_IDLE) {
+            enter_state(core, PET_STATE_LOOK_LEFT);
         }
         return true;
     case PET_EVENT_SLEEP:

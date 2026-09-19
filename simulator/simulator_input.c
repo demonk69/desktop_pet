@@ -38,12 +38,10 @@ bool simulator_input_translate(const SDL_Event *platform_event, uint32_t timesta
         pet_event->data.message_id = 1U;
         return true;
     case SDLK_LEFT:
-        pet_event->type = PET_EVENT_LOOK;
-        pet_event->data.look_direction = PET_LOOK_LEFT;
+        pet_event->type = PET_EVENT_NAV_PREV;
         return true;
     case SDLK_RIGHT:
-        pet_event->type = PET_EVENT_LOOK;
-        pet_event->data.look_direction = PET_LOOK_RIGHT;
+        pet_event->type = PET_EVENT_NAV_NEXT;
         return true;
     default:
         return false;
@@ -68,6 +66,10 @@ const char *simulator_event_name(const pet_event_t *event)
         return "MESSAGE id=1 (Hello Pet)";
     case PET_EVENT_LOOK:
         return event->data.look_direction == PET_LOOK_LEFT ? "LOOK LEFT" : "LOOK RIGHT";
+    case PET_EVENT_NAV_NEXT:
+        return "NAV NEXT";
+    case PET_EVENT_NAV_PREV:
+        return "NAV PREV";
     default:
         return "OTHER";
     }

@@ -13,6 +13,8 @@
 #include "pet_esp32_board_config.h"
 #include "pet_esp32_diag.h"
 #include "pet_esp32_display.h"
+#include "pet_esp32_rotary.h"
+#include "pet_esp32_rotary_hw_diag.h"
 #include "pet_esp32_runtime.h"
 #include "ui/pet_renderer.h"
 
@@ -96,6 +98,7 @@ void app_main(void)
     static pet_esp32_board_config_t board;
     static pet_esp32_backlight_t backlight_backend;
     static pet_esp32_display_t display_backend;
+    static pet_esp32_rotary_t rotary_backend;
     static pet_backlight_t backlight;
     static pet_display_t display;
     static pet_app_t app;
@@ -108,11 +111,23 @@ void app_main(void)
     ESP_LOGI(TAG, "Display: ST7789 240x240");
     ESP_LOGI(TAG, "LCD DIAGNOSTIC MODE: %s", pet_esp32_diag_mode_name());
     ESP_LOGI(TAG, "LCD DIAGNOSTIC TRANSPORT: %s", pet_esp32_diag_transport_name());
+    ESP_LOGI(TAG, "ROTARY DIAGNOSTIC MODE: %s",
+             pet_esp32_rotary_diag_mode_name());
     if (!pet_esp32_diag_mode_is_valid()) {
         stop_on_error("Unknown LCD diagnostic mode", PET_STATUS_INVALID_ARGUMENT);
     }
     if (!pet_esp32_diag_transport_is_valid()) {
         stop_on_error("Unknown LCD diagnostic transport", PET_STATUS_INVALID_ARGUMENT);
+    }
+    if (!pet_esp32_rotary_diag_mode_is_valid()) {
+        stop_on_error("Unknown rotary diagnostic mode", PET_STATUS_INVALID_ARGUMENT);
+    }
+    if (pet_esp32_rotary_hw_diag_enabled()) {
+        stop_on_error("Rotary HW diagnostic", pet_esp32_rotary_hw_diag_run());
+    }
+    if (pet_esp32_rotary_adc_margin_enabled()) {
+        stop_on_error("Rotary ADC margin diagnostic",
+                      pet_esp32_rotary_adc_margin_run());
     }
 
     pet_esp32_board_config_init(&board);
@@ -120,12 +135,24 @@ void app_main(void)
              (unsigned)board.pet.hardware.spi_frequency_hz,
              (unsigned)board.staging_buffer_bytes,
              board.lcd_dma_enabled ? "on" : "off", (unsigned)board.block_height);
+    ESP_LOGI(TAG, "Rotary: GA=%d BB=%d GA_PULL=%s BB_PULL=%s transitions=%u",
+             board.rotary_ga_gpio, board.rotary_bb_gpio, board.rotary_ga_pull,
+             board.rotary_bb_pull, (unsigned)board.rotary_transitions_per_detent);
+    ESP_LOGI(TAG, "Backlight PWM: freq=%u Hz resolution=%u default=%u sleep=%u",
+             (unsigned)board.pet.hardware.backlight_pwm_hz,
+             (unsigned)board.backlight_pwm_resolution_bits,
+             (unsigned)board.backlight_default_percent,
+             (unsigned)board.backlight_sleep_percent);
     stop_on_error("LCD transfer plan", log_lcd_transfer_plan(&board));
     stop_on_error("Config validation", pet_config_validate(&board.pet));
     stop_on_error("Backlight create",
                   pet_esp32_backlight_create(&backlight_backend, &backlight,
-                                             board.pet.hardware.gpio_backlight,
-                                             board.backlight_active_high));
+                                              board.pet.hardware.gpio_backlight,
+                                              board.backlight_active_high,
+                                              board.pet.hardware.backlight_pwm_hz,
+                                              board.backlight_pwm_resolution_bits,
+                                              board.backlight_default_percent,
+                                              board.backlight_sleep_percent));
     stop_on_error("Backlight init", pet_backlight_init(&backlight));
     stop_on_error("Display create",
                   pet_esp32_display_create(&display_backend, &display, &board));
@@ -142,11 +169,13 @@ void app_main(void)
     }
 
     stop_on_error("App init", pet_app_init(&app, &board.pet.app));
+    stop_on_error("Rotary create", pet_esp32_rotary_create(&rotary_backend, &board));
+    stop_on_error("Rotary start", pet_esp32_rotary_start(&rotary_backend));
     stop_on_error("Compiled assets init", pet_compiled_asset_provider_init(&assets));
     stop_on_error("Renderer init", pet_renderer_init(&renderer, &display, &theme));
     pet_renderer_set_asset_provider(&renderer,
                                     pet_compiled_asset_provider_interface(&assets));
     ESP_LOGI(TAG, "Renderer init OK");
     stop_on_error("Runtime", pet_esp32_runtime_run(&app, &renderer, &display_backend,
-                                                   &backlight));
+                                                   &backlight, &rotary_backend));
 }

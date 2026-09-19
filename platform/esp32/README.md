@@ -30,11 +30,105 @@ provider supplies boot, idle, blink, look, happy, and sleep resources without a
 filesystem or per-frame allocation. The backlight turns on after the first frame.
 
 Core's timer events provide the normal Blink/Look idle sequence. The platform runtime
-only adds Happy at 10 seconds, Sleep at 14 seconds, and Wake at 17 seconds in each
-22-second demo cycle. These are posted through `pet_app_post_event()`.
+does not set pet state directly; user input is posted as platform-neutral events and
+shared App/Core decide the behavior. The shared App currently posts `PET_EVENT_SLEEP`
+after 15 seconds without accepted user activity.
 
 The runtime targets a 100 ms frame period using `esp_timer_get_time()`. When synchronous
 rendering exceeds the budget, it yields for one RTOS tick instead of busy-waiting.
+
+## V0.6 Rotary Input
+
+The rotary module exposes `GND`, `VCC`, `BB`(SIGB), and `GA`(SIGA). It has internal
+3.3k pull-ups to VCC, the encoder common is GND, and the press switch is wired through
+a 3.3k resistor onto SIGA; there is no dedicated `SW` pin. Hardware parameters were
+verified on target with microsecond-level ISR sampling and are now the firmware
+defaults:
+
+```sh
+idf.py -D PET_ROTARY_GA_GPIO=4 \
+       -D PET_ROTARY_BB_GPIO=5 \
+       -D PET_ROTARY_GA_PULL=NONE \
+       -D PET_ROTARY_BB_PULL=NONE \
+       -D PET_ROTARY_TRANSITIONS_PER_DETENT=4 build
+```
+
+Verified values:
+
+- idle AB = `11`; internal GPIO pulls disabled
+- transitions per detent = 4
+- CW: `11→10→00→01→11` (lookup deltas all `+1`)
+- CCW: `11→01→00→10→11` (lookup deltas all `-1`)
+- mechanical bounce ~5–146 µs alternates `+1`/`-1` and cancels in the signed
+  accumulator; no fixed debounce is applied
+- invalid transitions during the full diagnostic run: 0
+- press is multiplexed onto GA: idle ≈3.1 V, press ≈1.50 V, A-contact closed ≈0 V
+
+The enabled backend path is `GPIO ISR → raw edge queue → rotary decoder task →
+event queue → runtime drain → shared Event Queue`. The ISR only captures raw
+`AB + timestamp` samples and pushes them into a small FreeRTOS queue; it never
+decodes, samples the ADC, or touches shared state.
+
+The decoder task owns the pipeline:
+
+- On a GA falling edge it classifies the GA voltage with the ADC oneshot API:
+  `LOW` (<600 mV, encoder A contact), `MID` (1000–2200 mV, press),
+  `HIGH` (>2600 mV, idle); the gaps are `uncertain` bands.
+- `MID` starts a press session instead of a quadrature step, so a press can never
+  complete a leftover detent accumulator. The press state machine
+  (`RELEASED → PRESS_CANDIDATE → PRESSED → RELEASE_CANDIDATE`, 15 ms debounce)
+  emits exactly one `INTERACT` (`PET_EVENT_BUTTON`) per press; holding does not
+  repeat, and releasing is classified through the ADC so the `01→11` release
+  never enters the quadrature accumulator.
+- While pressed, rotation navigation is paused (first-phase policy); on release
+  the decoder re-synchronizes from the current levels.
+- `LOW`/`HIGH` falling edges continue through the 16-entry lookup table and the
+  signed accumulator (`±4` per detent, remainder kept).
+
+Normal firmware only logs complete detents and presses
+(`ROTARY CW` / `ROTARY CCW` / `ROTARY PRESS`) plus a five-second stats line
+(`CW/CCW/press/invalid/dropped/accumulator`); it never prints per-edge or per-sample
+logs. PC `SPACE` and the ESP32 press use the same shared `PET_EVENT_BUTTON` path;
+Core treats it as `HAPPY` in `IDLE` and as wake in `SLEEP`.
+
+Classifier thresholds and the debounce are centralized build options with verified
+values (ADC margin diagnostics measured HIGH 3064~3123 mV, MID 1504~1540 mV,
+LOW 0 mV with transients ≤230 mV, leaving ample margin in every band):
+
+```sh
+idf.py -D PET_ROTARY_ADC_LOW_MAX_MV=600 \
+       -D PET_ROTARY_ADC_PRESS_MIN_MV=1000 \
+       -D PET_ROTARY_ADC_PRESS_MAX_MV=2200 \
+       -D PET_ROTARY_ADC_HIGH_MIN_MV=2600 \
+       -D PET_ROTARY_PRESS_DEBOUNCE_MS=15 build
+```
+
+Verified on target: 50 single clicks produced exactly 50 `INTERACT` events with zero NAV
+misfires; a 2 s hold produced a single `INTERACT`; presses after fast rotation never
+complete a leftover detent accumulator; press+rotate pauses navigation for the whole
+press session and re-syncs on release; a 10-minute mixed stress run finished with
+`CW=104 CCW=91 press=50 invalid=1 dropped=0`, constant heap, no crash/watchdog, and
+FPS ≥9.7 throughout.
+
+The raw hardware diagnostics stay available as
+`PET_ROTARY_DIAG_MODE=ROTARY_HW_DIAG` (per-edge capture) and
+`PET_ROTARY_DIAG_MODE=ADC_MARGIN` (per-class min/max/avg voltage statistics).
+
+## Backlight PWM
+
+GPIO7 is now controlled through the Backlight HAL by an ESP32 LEDC PWM backend. Current
+defaults are intentionally centralized and still require visual/electrical verification:
+
+```sh
+idf.py -D PET_BACKLIGHT_PWM_FREQ_HZ=20000 \
+       -D PET_BACKLIGHT_PWM_RESOLUTION=10 \
+       -D PET_BACKLIGHT_DEFAULT_PERCENT=100 \
+       -D PET_BACKLIGHT_SLEEP_PERCENT=0 build
+```
+
+Runtime calls `pet_backlight_wake()` after the first rendered frame and
+`pet_backlight_sleep()` when the shared App/Core enters `SLEEP`. Rotary code never
+controls the backlight directly.
 
 ## V0.5 LCD Performance Work
 

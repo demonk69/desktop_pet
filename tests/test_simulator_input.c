@@ -32,11 +32,9 @@ int main(void)
     event = translate(SDLK_m, &quit);
     assert(!quit && event.type == PET_EVENT_MESSAGE && event.data.message_id == 1U);
     event = translate(SDLK_LEFT, &quit);
-    assert(!quit && event.type == PET_EVENT_LOOK &&
-           event.data.look_direction == PET_LOOK_LEFT);
+    assert(!quit && event.type == PET_EVENT_NAV_PREV);
     event = translate(SDLK_RIGHT, &quit);
-    assert(!quit && event.type == PET_EVENT_LOOK &&
-           event.data.look_direction == PET_LOOK_RIGHT);
+    assert(!quit && event.type == PET_EVENT_NAV_NEXT);
     (void)translate(SDLK_ESCAPE, &quit);
     assert(quit);
 

@@ -4,7 +4,15 @@
 
 #if !defined(PET_LCD_SPI_FREQUENCY_HZ) || !defined(PET_LCD_STAGING_BUFFER_SIZE) || \
     !defined(PET_LCD_DMA_ENABLED) || !defined(PET_LCD_BLOCK_HEIGHT) ||            \
-    !defined(PET_LCD_DIAG_MODE) || !defined(PET_LCD_DIAG_TRANSPORT)
+    !defined(PET_LCD_DIAG_MODE) || !defined(PET_LCD_DIAG_TRANSPORT) ||           \
+    !defined(PET_ROTARY_GA_GPIO) || !defined(PET_ROTARY_BB_GPIO) ||              \
+    !defined(PET_ROTARY_GA_PULL) || !defined(PET_ROTARY_BB_PULL) ||              \
+    !defined(PET_ROTARY_TRANSITIONS_PER_DETENT) ||                               \
+    !defined(PET_ROTARY_ADC_LOW_MAX_MV) || !defined(PET_ROTARY_ADC_PRESS_MIN_MV) || \
+    !defined(PET_ROTARY_ADC_PRESS_MAX_MV) || !defined(PET_ROTARY_ADC_HIGH_MIN_MV) || \
+    !defined(PET_ROTARY_PRESS_DEBOUNCE_MS) ||                                    \
+    !defined(PET_BACKLIGHT_PWM_FREQ_HZ) || !defined(PET_BACKLIGHT_PWM_RESOLUTION) || \
+    !defined(PET_BACKLIGHT_DEFAULT_PERCENT) || !defined(PET_BACKLIGHT_SLEEP_PERCENT)
 #error "ESP32 LCD build configuration is incomplete"
 #endif
 
@@ -84,7 +92,7 @@ void pet_esp32_board_config_init(pet_esp32_board_config_t *config)
     config->pet.hardware.gpio_cs = 10;
     config->pet.hardware.gpio_mosi = 11;
     config->pet.hardware.gpio_sclk = 12;
-    config->pet.hardware.backlight_pwm_hz = PET_VALUE_HW_VERIFY;
+    config->pet.hardware.backlight_pwm_hz = PET_BACKLIGHT_PWM_FREQ_HZ;
     config->pet.hardware.psram_enabled = true;
     config->pet.hardware.framebuffer_bytes = 240U * 240U * sizeof(uint16_t);
 
@@ -93,6 +101,19 @@ void pet_esp32_board_config_init(pet_esp32_board_config_t *config)
     config->lcd_madctl = 0x00U;
     config->lcd_inverted = false;
     config->backlight_active_high = true;
+    config->rotary_ga_gpio = PET_ROTARY_GA_GPIO;
+    config->rotary_bb_gpio = PET_ROTARY_BB_GPIO;
+    config->rotary_ga_pull = PET_STRINGIFY(PET_ROTARY_GA_PULL);
+    config->rotary_bb_pull = PET_STRINGIFY(PET_ROTARY_BB_PULL);
+    config->rotary_transitions_per_detent = PET_ROTARY_TRANSITIONS_PER_DETENT;
+    config->rotary_adc_low_max_mv = PET_ROTARY_ADC_LOW_MAX_MV;
+    config->rotary_adc_press_min_mv = PET_ROTARY_ADC_PRESS_MIN_MV;
+    config->rotary_adc_press_max_mv = PET_ROTARY_ADC_PRESS_MAX_MV;
+    config->rotary_adc_high_min_mv = PET_ROTARY_ADC_HIGH_MIN_MV;
+    config->rotary_press_debounce_ms = PET_ROTARY_PRESS_DEBOUNCE_MS;
+    config->backlight_pwm_resolution_bits = PET_BACKLIGHT_PWM_RESOLUTION;
+    config->backlight_default_percent = PET_BACKLIGHT_DEFAULT_PERCENT;
+    config->backlight_sleep_percent = PET_BACKLIGHT_SLEEP_PERCENT;
     config->reset_low_ms = 20U;
     config->reset_high_ms = 120U;
 

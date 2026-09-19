@@ -26,6 +26,7 @@ typedef struct {
     pet_animation_player_t animation;
     pet_event_queue_t events;
     uint32_t now_ms;
+    uint32_t last_user_activity_ms;
 } pet_app_t;
 
 pet_status_t pet_app_init(pet_app_t *app, const pet_app_config_t *config);

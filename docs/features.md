@@ -32,16 +32,27 @@
 - LCD 显示链路集中编译参数（SPI 频率、staging、DMA、分块高度）
 - 单变量性能实测：polling staging、10/20/40/80 MHz、SPI DMA、1/4/8/16/32 行分块
 - 最终显示配置：40 MHz + SPI DMA + 4096-byte 内部 staging，10.0 FPS，flush 约 31.5 ms
+- 平台无关 `NAV_NEXT` / `NAV_PREV` 事件和 Core 行为
+- PC `RIGHT` / `LEFT` 映射到 `NAV_NEXT` / `NAV_PREV`
+- shared App 15 秒 inactivity sleep 计时与 `PET_EVENT_SLEEP` 投递
+- ESP32 rotary hardware diagnostic：ISR 微秒级 AB 采样、ADC 电平记录、truth table 实测
+- ESP32 rotary backend 正式接入：GA=GPIO4/BB=GPIO5，ISR → 16-entry lookup decoder →
+  signed accumulator（4/detent）→ `NAV_NEXT`/`NAV_PREV`，无固定 debounce
+- ESP32 rotary press：GA ADC oneshot LOW/MID/HIGH 分类 + press 状态机（15ms debounce）
+  → 复用 `PET_EVENT_BUTTON`（INTERACT）；按压与 quadrature 隔离，按压期间导航暂停
+- Core `SLEEP + INTERACT` 唤醒语义；PC SPACE 与 ESP32 PRESS 共享同一 interaction 事件
+- ESP32 GPIO7 LEDC PWM Backlight HAL backend，支持 default/sleep 亮度
+- V0.6 真机验收：press+rotate ×10、ADC margin、10 分钟混合压力稳定性全部通过
 
 ## 开发中
 
-- 暂无；V0.5 已完成 LCD 性能测量与最终配置真机回归
+- 无；V0.6 rotary navigation + press/INTERACT 已完成
 
 ## 计划中
 
 - 8080 backend（是否实现由实测性能和接线决定）
 - Display HAL 边界和错误路径测试补充
-- PWM 背光与淡入淡出
+- LEDC PWM 背光参数实机确认与硬件 fade
 - 动画画面目视确认（花屏、错色、坏帧、撕裂）
 - 更高 SPI 频率或更大 staging 的目视验证与选择
 - dirty rectangle 最小接口设计与实现
@@ -50,7 +61,7 @@
 - 天气
 - PC 通信
 - AI 交互
-- 按键与传感器
+- 传感器
 - 持久化 storage
 
 ## 暂不实现

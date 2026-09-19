@@ -54,7 +54,38 @@ PSRAM 1MB read/write test: PASS
 | GND | GND |
 | 3V3 | 3V3 |
 
-背光 GPIO7 高电平开启。V0.3 仅实现开关，不代表 PWM 参数已验证。
+背光 GPIO7 高电平开启。V0.6 已接入 LEDC PWM backend，但频率、分辨率、sleep/default
+亮度和电气效果仍需实机确认。
+
+## Rotary Input Hardware Status（V0.6 已实测）
+
+模块 4 线：`GND`、`VCC`、`BB`(SIGB)、`GA`(SIGA)。模块内部 SIGA/SIGB 各经 3.3k 上拉到
+VCC，编码器公共端 C 接 GND，按压 SW 经 3.3k 接到 SIGA；没有独立 SW 引脚。
+
+| 项目 | 实测值 | 状态 |
+|---|---|---|
+| VCC | 3.3V | `[已验证]` |
+| GA GPIO | GPIO4 | `[已验证]` |
+| GA ADC | ADC1 CH3（GPIO4） | `[已验证]` |
+| BB GPIO | GPIO5 | `[已验证]` |
+| ESP32 内部 pull | disabled（模块自带 3.3k 上拉） | `[已验证]` |
+| idle AB | 11（GA=1、BB=1） | `[已验证]` |
+| transitions per detent | 4 | `[已验证]` |
+| CW truth table | `11→10→00→01→11`（lookup 全 +1） | `[已验证]` |
+| CCW truth table | `11→01→00→10→11`（lookup 全 -1） | `[已验证]` |
+| 机械 bounce | 约 5~146 µs，±1 交替，accumulator 自然抵消 | `[已验证]` |
+| invalid transitions | 完整实测 = 0 | `[已验证]` |
+| press 信号 | 复用 GA：idle ≈3.1V、press ≈1.50V、A 触点闭合 ≈0V | `[已验证]` |
+| press ADC 分布 | HIGH 3064~3123 mV；MID 1504~1540 mV；LOW 0 mV（瞬态 ≤230 mV） | `[已验证]` |
+| press 分类阈值 | LOW<600、MID 1000..2200、HIGH>2600 mV，余量充分 | `[已验证]` |
+| press debounce | 15 ms（单击 50 次、长按 2s、快速旋转后按压实测通过） | `[已验证]` |
+| 按住同时旋转 | 按压期间导航暂停，release resync；10 次专项实测通过 | `[已验证]` |
+
+V0.6 已正式接入旋转方向与按压：CW→`NAV_NEXT`、CCW→`NAV_PREV`、press→`PET_EVENT_BUTTON`
+（INTERACT）。GA falling edge 时 decoder task 采样 ADC 区分按压（MID）与旋转（LOW/HIGH）；
+按压 transition 不进 quadrature accumulator（残留 accumulator 不会被按压补全成假 detent），
+按压期间旋转导航暂停，释放后按当前电平重新同步 decoder。10 分钟混合压力实测：CW=104、
+CCW=91、press=50、invalid=1、dropped=0、heap 恒定、无 crash/watchdog。
 
 ## 已验证初始化序列
 
@@ -125,7 +156,16 @@ free PSRAM 固定 8269568 bytes。
 - [x] `[已验证]` RESET 低 20 ms，释放后等待 120 ms
 - [x] `[已验证]` 背光 GPIO7，高电平开启
 - [ ] `[HW_VERIFY]` 背光驱动电路和电流能力
-- [ ] `[HW_VERIFY]` 背光 PWM 外设、频率、分辨率和是否可硬件 fade
+- [ ] `[HW_VERIFY]` 背光 PWM 频率、分辨率、default/sleep 亮度和是否可硬件 fade
+- [x] `[已验证]` Rotary VCC = 3.3V；模块内部 3.3k 上拉，ESP32 内部 pull disabled
+- [x] `[已验证]` GA=GPIO4（ADC1 CH3），BB=GPIO5
+- [x] `[已验证]` GA/BB idle AB=11；transitions per detent=4
+- [x] `[已验证]` CW `11→10→00→01→11`（全 +1），CCW `11→01→00→10→11`（全 -1）
+- [x] `[已验证]` 机械 bounce 约 5~146 µs，±1 交替由 accumulator 自然抵消；invalid=0
+- [x] `[已验证]` press 复用 GA：idle ≈3.1V / press ≈1.50V / A 触点闭合 ≈0V
+- [x] `[已验证]` press ADC 阈值 LOW<600 / 1000..2200 / HIGH>2600 mV，实测余量充分
+- [x] `[已验证]` press debounce 15 ms
+- [x] `[已验证]` 按住同时旋转：按压期间导航暂停，release resync 正常
 - [ ] `[HW_VERIFY]` 电源域、睡眠唤醒顺序和 LCD 休眠命令
 - [x] `[已验证]` Flash 实际容量为 16 MB
 - [ ] `[HW_VERIFY]` Flash 分区和可用于资源的空间
@@ -137,7 +177,7 @@ free PSRAM 固定 8269568 bytes。
 - [x] `[已验证]` 40 MHz + DMA + 4 KiB staging 的 60 秒稳定性和性能基线
 - [ ] `[HW_VERIFY]` 双缓冲、dirty rectangle 和 TE 同步
 - [ ] `[HW_VERIFY]` 屏幕撕裂信号 TE 是否引出和是否使用
-- [ ] `[HW_VERIFY]` 按键、传感器和其他外设 GPIO/总线
+- [ ] `[HW_VERIFY]` 传感器和其他外设 GPIO/总线
 
 ## 后续硬件验证顺序
 
@@ -146,7 +186,8 @@ free PSRAM 固定 8269568 bytes。
 3. 需要更高帧率时，目视验证 80 MHz 与更大 staging/分块，再决定是否调整默认值。
 4. 评估 dirty rectangle：Renderer 当前无 previous frame、changed region 或动画帧边界
    信息，6x6 资源整帧放大且每帧全量重绘；需要先增加极小的平台无关 dirty-bounds 接口。
-5. 需要调光时实现 LEDC 并验证 PWM 频率、分辨率、fade、sleep/wake。
-6. 仅在产品确实选择 8080 时验证其数据宽度、时序和 GPIO。
+5. LEDC PWM 频率、分辨率、亮度曲线、fade、sleep/wake 的电气实测。
+6. 验证 LEDC PWM 频率、分辨率、亮度曲线、fade、sleep/wake。
+7. 仅在产品确实选择 8080 时验证其数据宽度、时序和 GPIO。
 
 所有实测结论应回填本文件，并移除对应代码中的 `HW_VERIFY`，不能只修改魔法数字。

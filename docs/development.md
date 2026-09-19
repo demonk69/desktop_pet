@@ -57,6 +57,9 @@ FPS、flush、frame 和 heap；实测结论回填 `docs/hardware.md` 与 `platfo
 - PC：从仓库根目录运行普通 CMake，选择 framebuffer 或 SDL Display backend。
 - ESP32：在 `platform/esp32/` 运行 `idf.py`，main component 构造 ESP32 Display/Backlight。
 - ESP32 runtime：只提供时钟、frame pacing、统计和事件生产；状态迁移仍由共享 App/Core 完成。
+- ESP32 rotary：GA/BB 与 press 参数已实测（GA=GPIO4/BB=GPIO5、pull 关闭、4 transitions/detent、
+  ADC LOW<600/1000..2200/HIGH>2600 mV、debounce 15 ms）。新增/修改 rotary 参数前先看
+  `docs/hardware.md` 的实测表，未实测的新参数保持 `HW_VERIFY` 并默认禁用对应功能。
 - Shared：Core、App、Animation、Event、Renderer 和 HAL API 不使用平台条件编译。
 - 新平台只新增入口、board config 和 HAL backend，不复制共享业务源文件。
 
@@ -127,6 +130,18 @@ offset 和 ST7789 window 属于 ESP32 Display backend，不能放入 Renderer。
 3. 输入适配器只返回事件或 quit 请求，禁止调用 `pet_set_state` 一类直接状态接口。
 4. 在 `test_simulator_input` 用合成 SDL event 验证映射，不创建 GUI 窗口。
 5. 更新 README 键盘表和帮助文本。
+
+## 添加 Rotary 输入
+
+1. 确认模块只有 `GND`、`VCC`、`BB`、`GA` 时，不得假设存在 `SW`、`KEY` 或 `PRESS` GPIO。
+2. GA/BB GPIO、VCC、电气特性、idle level、pull、每档 transition 数和方向表未实测前保持
+   `HW_VERIFY`，不自动选择未知 GPIO。
+3. ESP32 backend 只把 decoded direction 转成 `PET_EVENT_NAV_NEXT` / `PET_EVENT_NAV_PREV`，不得
+   调用 Core 状态接口或 Renderer。
+4. quadrature decoder 使用 previous AB + current AB 的 16-entry lookup table 和 signed accumulator；
+   不用固定 50 ms 全局 debounce 过滤旋转通道。
+5. ISR 只做最小采样或唤醒任务；禁止 malloc、printf、Renderer、Pet Core 调用和状态切换。
+6. PC simulator 使用 `LEFT` / `RIGHT` 产生同样的 NAV 事件，不维护另一套 Core 规则。
 
 ## 添加 Service
 

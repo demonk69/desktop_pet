@@ -53,6 +53,13 @@ int main(void)
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_IDLE);
 
+    event = (pet_event_t){ .type = PET_EVENT_SLEEP };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_SLEEP);
+    event = (pet_event_t){ .type = PET_EVENT_BUTTON };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_IDLE);
+
     event = (pet_event_t){ .type = PET_EVENT_LOOK,
                            .data.look_direction = PET_LOOK_LEFT };
     assert(pet_core_handle_event(&core, &config, &event));
@@ -65,6 +72,33 @@ int main(void)
     event = (pet_event_t){ .type = PET_EVENT_HAPPY };
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_HAPPY);
+
+    event = (pet_event_t){ .type = PET_EVENT_SLEEP };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_SLEEP);
+    event = (pet_event_t){ .type = PET_EVENT_NAV_NEXT };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_IDLE);
+    event = (pet_event_t){ .type = PET_EVENT_NAV_NEXT };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_LOOK_RIGHT);
+    event = (pet_event_t){ .type = PET_EVENT_ANIMATION_DONE,
+                           .data.code = PET_ANIM_LOOK_RIGHT };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_IDLE);
+    event = (pet_event_t){ .type = PET_EVENT_NAV_PREV };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_LOOK_LEFT);
+    event = (pet_event_t){ .type = PET_EVENT_ANIMATION_DONE,
+                           .data.code = PET_ANIM_LOOK_LEFT };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_IDLE);
+    event = (pet_event_t){ .type = PET_EVENT_SLEEP };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_SLEEP);
+    event = (pet_event_t){ .type = PET_EVENT_NAV_PREV };
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_IDLE);
 
     event = (pet_event_t){ .type = PET_EVENT_COUNT };
     assert(!pet_core_handle_event(&core, &config, &event));

@@ -1,10 +1,54 @@
 #include "pet/pet_app.h"
 
+#define PET_APP_INACTIVITY_SLEEP_MS 15000U
+
 static void apply_animation_request(pet_app_t *app)
 {
     pet_animation_id_t requested;
     if (pet_core_take_animation_request(&app->core, &requested)) {
         (void)pet_play_animation(&app->animation, requested);
+    }
+}
+
+static bool is_user_activity_event(const pet_event_t *event)
+{
+    if (event == NULL) {
+        return false;
+    }
+    switch (event->type) {
+    case PET_EVENT_BUTTON:
+    case PET_EVENT_LOOK:
+    case PET_EVENT_NAV_NEXT:
+    case PET_EVENT_NAV_PREV:
+    case PET_EVENT_WAKE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static void process_queued_events(pet_app_t *app)
+{
+    pet_event_t event;
+    while (pet_event_queue_pop(&app->events, &event)) {
+        bool handled = pet_core_handle_event(&app->core, &app->core_config, &event);
+        if (handled && is_user_activity_event(&event)) {
+            app->last_user_activity_ms = app->now_ms;
+        }
+        apply_animation_request(app);
+    }
+}
+
+static void post_inactivity_sleep_if_due(pet_app_t *app)
+{
+    pet_event_t event;
+    if (pet_core_state(&app->core) == PET_STATE_SLEEP ||
+        app->now_ms - app->last_user_activity_ms < PET_APP_INACTIVITY_SLEEP_MS) {
+        return;
+    }
+    event = (pet_event_t){ .type = PET_EVENT_SLEEP, .timestamp_ms = app->now_ms };
+    if (pet_event_queue_push(&app->events, &event)) {
+        process_queued_events(app);
     }
 }
 
@@ -17,6 +61,7 @@ pet_status_t pet_app_init(pet_app_t *app, const pet_app_config_t *config)
     }
     app->core_config = config->core;
     app->now_ms = 0U;
+    app->last_user_activity_ms = 0U;
     pet_event_queue_init(&app->events);
     status = pet_core_init(&app->core, &app->core_config);
     if (status != PET_STATUS_OK) {
@@ -56,10 +101,8 @@ void pet_app_update(pet_app_t *app, uint32_t delta_ms)
                            .data.timer_delta_ms = delta_ms };
     (void)pet_event_queue_push(&app->events, &event);
 
-    while (pet_event_queue_pop(&app->events, &event)) {
-        (void)pet_core_handle_event(&app->core, &app->core_config, &event);
-        apply_animation_request(app);
-    }
+    process_queued_events(app);
+    post_inactivity_sleep_if_due(app);
 }
 
 pet_app_snapshot_t pet_app_snapshot(const pet_app_t *app)

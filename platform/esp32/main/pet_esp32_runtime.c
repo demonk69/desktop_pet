@@ -16,7 +16,6 @@
 
 #define TARGET_FRAME_US   ((uint64_t)PET_ESP32_TARGET_FRAME_US)
 #define REPORT_INTERVAL_US 5000000ULL
-#define DEMO_CYCLE_MS 22000ULL
 
 typedef struct {
     uint64_t frames;
@@ -30,52 +29,11 @@ typedef struct {
     uint64_t frame_max_us;
 } runtime_stats_t;
 
-typedef struct {
-    uint64_t cycle;
-    bool happy_posted;
-    bool sleep_posted;
-    bool wake_posted;
-} demo_state_t;
-
 static const char *TAG = "pet_runtime";
 
 static uint64_t maximum(uint64_t left, uint64_t right)
 {
     return left > right ? left : right;
-}
-
-static void post_demo_event(pet_app_t *app, pet_event_type_t type, const char *name)
-{
-    const pet_event_t event = { .type = type, .timestamp_ms = app->now_ms };
-    if (pet_app_post_event(app, &event)) {
-        ESP_LOGI(TAG, "Demo event: %s", name);
-    } else {
-        ESP_LOGW(TAG, "Demo event queue full: %s", name);
-    }
-}
-
-static void update_demo(pet_app_t *app, demo_state_t *demo, uint64_t elapsed_ms)
-{
-    uint64_t cycle = elapsed_ms / DEMO_CYCLE_MS;
-    uint64_t cycle_ms = elapsed_ms % DEMO_CYCLE_MS;
-    if (cycle != demo->cycle) {
-        demo->cycle = cycle;
-        demo->happy_posted = false;
-        demo->sleep_posted = false;
-        demo->wake_posted = false;
-    }
-    if (!demo->happy_posted && cycle_ms >= 10000ULL) {
-        post_demo_event(app, PET_EVENT_HAPPY, "HAPPY");
-        demo->happy_posted = true;
-    }
-    if (!demo->sleep_posted && cycle_ms >= 14000ULL) {
-        post_demo_event(app, PET_EVENT_SLEEP, "SLEEP");
-        demo->sleep_posted = true;
-    }
-    if (!demo->wake_posted && cycle_ms >= 17000ULL) {
-        post_demo_event(app, PET_EVENT_WAKE, "WAKE");
-        demo->wake_posted = true;
-    }
 }
 
 static void report_stats(const runtime_stats_t *stats, uint64_t elapsed_us)
@@ -100,14 +58,14 @@ static void report_stats(const runtime_stats_t *stats, uint64_t elapsed_us)
 }
 
 pet_status_t pet_esp32_runtime_run(pet_app_t *app, pet_renderer_t *renderer,
-                                   pet_esp32_display_t *display_backend,
-                                   pet_backlight_t *backlight)
+                                    pet_esp32_display_t *display_backend,
+                                    pet_backlight_t *backlight,
+                                    pet_esp32_rotary_t *rotary)
 {
     uint64_t run_start_us;
     uint64_t previous_frame_us;
     uint64_t report_start_us;
     runtime_stats_t stats = { 0 };
-    demo_state_t demo = { 0 };
     pet_state_t previous_state;
     pet_animation_id_t previous_animation;
     bool backlight_enabled = false;
@@ -144,13 +102,24 @@ pet_status_t pet_esp32_runtime_run(pet_app_t *app, pet_renderer_t *renderer,
         pet_status_t status;
 
         previous_frame_us = frame_start_us;
-        update_demo(app, &demo, (frame_start_us - run_start_us) / 1000ULL);
 
         app_start_us = pet_esp32_time_now_us();
+        pet_esp32_rotary_drain_events(rotary, app);
         pet_app_update(app, delta_ms);
         app_us = pet_esp32_time_now_us() - app_start_us;
         snapshot = pet_app_snapshot(app);
         if (snapshot.state != previous_state || snapshot.animation != previous_animation) {
+            if (snapshot.state == PET_STATE_SLEEP && previous_state != PET_STATE_SLEEP) {
+                status = pet_backlight_sleep(backlight);
+                if (status != PET_STATUS_OK) {
+                    return status;
+                }
+            } else if (previous_state == PET_STATE_SLEEP && snapshot.state != PET_STATE_SLEEP) {
+                status = pet_backlight_wake(backlight);
+                if (status != PET_STATUS_OK) {
+                    return status;
+                }
+            }
             ESP_LOGI(TAG, "State=%s animation=%s", pet_state_name(snapshot.state),
                      pet_animation_name(snapshot.animation));
             previous_state = snapshot.state;
@@ -166,7 +135,7 @@ pet_status_t pet_esp32_runtime_run(pet_app_t *app, pet_renderer_t *renderer,
         flush_us = pet_esp32_display_last_flush_us(display_backend);
         render_us = render_call_us >= flush_us ? render_call_us - flush_us : 0U;
         if (!backlight_enabled) {
-            status = pet_backlight_set_brightness(backlight, 100U);
+            status = pet_backlight_wake(backlight);
             if (status != PET_STATUS_OK) {
                 return status;
             }

@@ -2,7 +2,7 @@
 
 ## 总体结构
 
-V0.4 继续采用依赖倒置：业务状态不认识 SDL、ESP-IDF、LCD、SPI、GPIO 或 PWM；平台差异通过 HAL backend
+V0.6 继续采用依赖倒置：业务状态不认识 SDL、ESP-IDF、LCD、SPI、GPIO、LEDC 或 PWM；平台差异通过 HAL backend
 注入。App 层是唯一负责把事件、Pet Core 和动画播放器编排在一起的模块。
 
 ```text
@@ -42,7 +42,7 @@ V0.4 继续采用依赖倒置：业务状态不认识 SDL、ESP-IDF、LCD、SPI�
 | 模块 | 职责 | 不负责 |
 |---|---|---|
 | `core/` | 状态迁移、事件语义、行为意图 | 绘制、GPIO、资源读取 |
-| `app/pet/` | 事件分发、动画完成回送、模块生命周期 | 决定像素和总线时序 |
+| `app/pet/` | 事件分发、动画完成回送、inactivity sleep 计时、模块生命周期 | 决定像素和总线时序 |
 | `animation/` | 帧时间轴、循环、切换、完成通知 | 资源存放位置、显示输出 |
 | `ui/` | 将 App 快照转换为 Display API 调用 | 改变 Pet 状态、调用 ST7789 |
 | `hal/` | 稳定的平台无关设备 API | MCU SDK 细节 |
@@ -73,7 +73,13 @@ services                       -> event publishing contract
 `PET_EVENT_ANIMATION_DONE` 回到状态机，而不是由 UI 直接切换状态。
 
 Idle 根据 timer 累计值依次触发眨眼和左右看。Button/Message/Happy 触发开心，Look 携带
-左右方向，Sleep/Wake 控制睡眠。传感器、网络和系统事件已有类型，但 V0.2 不定义其业务语义。
+左右方向，Sleep/Wake 控制睡眠。`PET_EVENT_NAV_NEXT` 和 `PET_EVENT_NAV_PREV` 是平台无关
+导航事件：IDLE 中分别进入 LOOK_RIGHT/LOOK_LEFT，SLEEP 中唤醒回 IDLE。Core 不知道 GA/BB、
+rotary encoder 或 GPIO，也不持有 inactivity timer。
+
+App 层记录最近用户 activity。`NAV_NEXT`、`NAV_PREV`、`BUTTON`、`LOOK` 和 `WAKE` 等被 Core
+接受的用户输入会重置计时；测试阶段 15 秒无 activity 时，App 向同一个 Event Queue 投递
+`PET_EVENT_SLEEP`。该策略后续可配置化，但不进入 Pet Core。
 
 ## 动画与资源
 
@@ -92,8 +98,8 @@ rotation、width/height 和 brightness。PC framebuffer、SDL 和 ESP32 ST7789 b
 同一 API；旧 stub 继续作为未选择 backend 的显式 unsupported 边界。
 
 Renderer 永远只看 Display API。V0.3 ESP32 backend 是经实机验证的 ST7789-over-SPI 实现；
-未实现的 8080 不进入该 backend。独立背光策略使用 Backlight HAL，当前 GPIO backend 只提供
-开关语义，LEDC fade 留待确有调光需求时实现。
+未实现的 8080 不进入该 backend。独立背光策略使用 Backlight HAL。ESP32 当前 backend 使用
+LEDC PWM 提供亮度百分比，fade 和最终 PWM 参数仍需实机验证。
 
 ## ESP32 Platform
 
@@ -118,10 +124,9 @@ V0.5 使用 40 MHz SPI、`SPI_DMA_CH_AUTO` 和 4096-byte 内部 DMA-capable stag
 transaction 先把该块 PSRAM 像素打包进内部 buffer，再同步等待 DMA 发送。PSRAM framebuffer
 不作为 DMA transaction 的直接 source，也不搬进内部 SRAM。
 
-V0.4 `app_main` 只组装 board、HAL、App、compiled provider 和 Renderer。ESP32 runtime 用
+V0.6 `app_main` 组装 board、HAL、App、compiled provider、Renderer 和 rotary backend。ESP32 runtime 用
 `esp_timer_get_time()` 计算真实 `delta_ms`，每帧依次调用共享 `pet_app_update()`、读取快照和
-调用 Renderer。Core 自带 Blink/Look idle 序列；平台演示器仅通过 Event Queue 注入 Happy、
-Sleep、Wake，不直接设置状态。Renderer 仍拥有同步 flush。
+调用 Renderer。Core 自带 Blink/Look idle 序列；平台不直接设置状态。Renderer 仍拥有同步 flush。
 
 当前目标周期为 100 ms。同步全帧处理超过预算时 runtime 至少 yield 一个 RTOS tick；实测约
 10.0 FPS（flush 平均 31.5 ms、整帧约 68.6 ms，受 100 ms pacing 限制）。Display backend
@@ -133,6 +138,26 @@ LCD 链路参数（SPI 频率、staging 大小、DMA 开关、分块高度）集
 ESP-IDF 拒绝 non-DMA 超过 64-byte 的单次 transaction，该约束在 display init 中提前校验。
 Dirty rectangle 暂不实现：Renderer 没有 previous frame、changed region 或动画帧边界信息，
 需要先增加极小的平台无关 dirty-bounds 接口。
+
+Rotary backend 面向两路数字信号 GA/BB，并独占 GA 的 ADC1 CH3 模拟通道。架构为：
+
+```text
+GPIO ISR (双沿, 只采集 raw AB + 时间戳)
+        ↓  FreeRTOS raw edge queue
+rotary decoder task
+    ├── GA ADC oneshot 分类: LOW / MID(press) / HIGH / uncertain
+    ├── press 状态机: RELEASED → PRESS_CANDIDATE → PRESSED → RELEASE_CANDIDATE
+    │                 MID 稳定 15ms 产生一次 INTERACT，HIGH 稳定 15ms 释放
+    └── quadrature decoder: 16-entry lookup + signed accumulator (±4/detent)
+        ↓  FreeRTOS event queue (NAV_NEXT / NAV_PREV / INTERACT)
+runtime drain → shared Event Queue
+```
+
+ISR 内不做解码、不采样 ADC、不提交事件。GA falling edge 到达时 decoder task 采样 ADC
+区分按压（MID）与旋转（LOW）；按压 transition 不进 quadrature accumulator，按压期间导航
+暂停，press session 与 rotary 残量隔离，释放后按当前电平 resync。`INTERACT` 复用共享的
+`PET_EVENT_BUTTON`（PC SPACE 与 ESP32 PRESS 同事件），Core 在 IDLE 下进入 HAPPY、SLEEP 下
+唤醒回 IDLE。ADC classifier 与 GPIO ISR 属于 ESP32 platform，不进入 shared Core。
 
 ## 事件架构
 
@@ -152,7 +177,8 @@ SDL2 keyboard/window
 P3 files --> PC File Asset Provider ------+
 ```
 
-SDL 主循环只负责平台事件、单调时间差、渲染调用和 frame pacing。Core 接收 `delta_ms`，
+SDL 主循环只负责平台事件、单调时间差、渲染调用和 frame pacing。`LEFT` / `RIGHT` 被 input
+adapter 转成 `NAV_PREV` / `NAV_NEXT`，与 ESP32 rotary 共用 Core 行为。Core 接收 `delta_ms`，
 不调用 `SDL_GetTicks64()`。SDL Display backend 拥有窗口、texture 和 RGB565 framebuffer，
 `flush` 才把共享 Renderer 的输出提交到窗口。
 
@@ -162,8 +188,8 @@ SDL 主循环只负责平台事件、单调时间差、渲染调用和 frame pac
 |---|---|
 | Shared | `core/`、`app/pet/`、`animation/`、`ui/`、`hal/` 公共契约 |
 | PC only | SDL/framebuffer backend、SDL input adapter、P3 file provider、PC main |
-| ESP32 only | ESP-IDF main/runtime/time、compiled provider、board config、SPI/ST7789、GPIO backlight |
-| Future embedded | LEDC、DMA/局部刷新优化、其他 backend |
+| ESP32 only | ESP-IDF main/runtime/time、compiled provider、board config、SPI/ST7789、LEDC backlight、rotary backend（ISR+ADC+decoder task） |
+| Future embedded | DMA/局部刷新优化、其他 backend |
 
 ## PC 与真机复用
 

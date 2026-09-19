@@ -1,6 +1,6 @@
 # Desktop Pet
 
-面向 TFT LCD 桌面智能桌宠的软件工程。当前已完成 **V0.5 ESP32-S3 LCD 性能优化**：
+面向 TFT LCD 桌面智能桌宠的软件工程。当前已完成 **V0.6 旋钮输入（rotary + press）**：
 同一套 Pet Core、App、Animation 和 Renderer 可运行在 SDL2 PC 模拟器和 ESP-IDF 真机上。
 
 ## 当前实现
@@ -20,12 +20,18 @@
 - ESP32-S3 SPI/ST7789 Display backend 和 GPIO Backlight backend
 - PSRAM 单 framebuffer 和同步 RGB565 MSB-first flush
 - 无文件系统、无每帧分配的 ESP32 compiled RGB565 asset provider
-- 真机 runtime、Event Queue 演示事件和五秒性能/内存统计
+- 真机 runtime、rotary input drain 边界和五秒性能/内存统计
 - LCD 显示链路集中编译参数和完整单变量性能矩阵
 - 默认显示配置：40 MHz SPI + DMA + 4096-byte 内部 staging，10.0 FPS
+- 平台无关 `NAV_NEXT` / `NAV_PREV` 事件，PC `RIGHT` / `LEFT` 共用同一 Core 行为
+- shared App 层 15 秒 inactivity sleep 逻辑，Core 仅处理 `PET_EVENT_SLEEP` 和 NAV 状态转换
+- ESP32 rotary backend：GA/BB ISR → raw 队列 → decoder task（quadrature + ADC press 分类）
+  → `NAV_NEXT`/`NAV_PREV`/INTERACT（复用 `PET_EVENT_BUTTON`），10 分钟真机稳定性通过
+- ESP32 GPIO7 LEDC PWM backlight backend，经 Backlight HAL 控制 default/sleep 亮度
 
-V0.5 未实现 LEDC 调光、双缓冲、局部刷新、8080 或在线服务；动画画面（花屏、错色、
-坏帧、撕裂）仍需人工目视确认。尚未确认的电气和性能上限继续标记为 `HW_VERIFY`。
+旋钮模块引脚为 `GND`、`VCC`、`BB`(SIGB)、`GA`(SIGA)，无独立 `SW/KEY/PRESS` 输出；按压
+信号复用 GA（idle ≈3.1V / press ≈1.50V / A 触点闭合 ≈0V），由 GA ADC 分类为 LOW/MID/HIGH。
+GA=GPIO4（ADC1 CH3）、BB=GPIO5、内部 pull 关闭、每 detent 4 transitions 均已实测确认。
 
 ## 构建与测试
 
@@ -74,13 +80,13 @@ cmake -S . -B build -DPET_BUILD_SDL_SIMULATOR=OFF
 
 | 按键 | 事件/行为 |
 |---|---|
-| `SPACE` | 普通按键交互 |
+| `SPACE` | 普通按键交互（PC 测试入口，不代表 ESP32 已有 press 引脚） |
 | `H` | 开心 |
 | `S` | 睡眠 |
 | `W` | 唤醒 |
 | `M` | 模拟消息 `Hello Pet` |
-| `LEFT` | 向左看 |
-| `RIGHT` | 向右看 |
+| `LEFT` | `NAV_PREV`，Core 在 IDLE 中进入向左看 |
+| `RIGHT` | `NAV_NEXT`，Core 在 IDLE 中进入向右看 |
 | `ESC` | 退出 |
 
 输入路径始终是 `SDL event -> simulator input adapter -> pet_event_t -> App queue -> Core`，
@@ -113,8 +119,9 @@ idf.py -p /dev/ttyACM0 monitor
 ```
 
 `flash` 只写入构建产物，不需要 `erase-flash`。当前固件持续运行共享 App/Animation/Renderer，
-使用 compiled assets 播放完整演示序列并定期输出性能统计。默认显示链路为 40 MHz SPI、
-DMA 开启、4096-byte 内部 staging。LCD 参数可用编译变量覆盖用于 benchmark：
+使用 compiled assets 播放桌宠动画并定期输出性能统计。默认显示链路为 40 MHz SPI、
+DMA 开启、4096-byte 内部 staging；15 秒无用户输入后由 shared App 投递 sleep event。
+LCD 参数可用编译变量覆盖用于 benchmark：
 
 ```sh
 idf.py -D PET_LCD_SPI_FREQUENCY_HZ=40000000 \
@@ -152,7 +159,8 @@ docs/                架构、硬件、功能和开发文档
 ST7789 240x240。当前默认使用 SPI2 mode 0、40 MHz、RGB565/RGB、rotation 0、offset 0/0、
 SPI DMA 与 4096-byte 内部 staging，实测 10.0 FPS（pacing 受限），flush 平均约 31.5 ms，
 整帧约 68.6 ms；候选配置矩阵和 60 秒稳定性数据见 `platform/esp32/README.md`。
-动画画面目视确认、撕裂观感、PWM 调光和电气细节仍待验证。
+Rotary 模块 GA/BB、方向表、press 电压与阈值均已实测确认并完成 10 分钟稳定性验收。
+动画画面目视确认、撕裂观感和背光 PWM 电气参数仍待验证。
 
 完整 Bring-up 清单见 [`docs/hardware.md`](docs/hardware.md) 和 [`TODO.md`](TODO.md)。
 
@@ -161,7 +169,7 @@ SPI DMA 与 4096-byte 内部 staging，实测 10.0 FPS（pacing 受限），flus
 1. 人工目视确认 40 MHz DMA 动画画面无花屏、错色、坏帧和影响体验的撕裂。
 2. 若帧率仍不足，目视验证 80 MHz 与更大 staging，再决定是否调整默认配置。
 3. 评估 dirty rectangle：先设计极小的平台无关 dirty-bounds 接口。
-4. 需要可调亮度时实现 LEDC backend。
+4. 需要更细亮度控制时验证 LEDC PWM 频率、分辨率与 fade。
 
 架构约束和扩展步骤分别见 [`docs/architecture.md`](docs/architecture.md) 与
 [`docs/development.md`](docs/development.md)。

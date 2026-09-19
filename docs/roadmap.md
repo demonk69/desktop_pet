@@ -54,18 +54,35 @@
 无 watchdog、无重启、heap 不下降。当前条件已满足（基于日志）；花屏/错色/撕裂仍待人工
 目视确认。
 
-## V0.6 Wi-Fi / 时间
+## V0.6 Rotary Input / Backlight（已完成）
+
+- 平台无关 `NAV_NEXT` / `NAV_PREV` 事件
+- PC `LEFT` / `RIGHT` 与 ESP32 rotary 共用 Core 行为
+- shared App inactivity sleep，测试阈值 15 秒
+- ESP32 GA/BB rotary backend skeleton 和 quadrature decoder
+- GPIO7 LEDC PWM Backlight HAL backend
+- rotary hardware diagnostic：ISR 微秒级采样，实测 GA/BB 电气参数与方向表
+- rotary 正式接入：ISR → decoder → NAV 事件，CW/CCW 20 格与快速旋转真机验收
+- press 接入：GA ADC LOW/MID/HIGH classifier + press 状态机 → 复用 `PET_EVENT_BUTTON`
+  （INTERACT）；press 与 quadrature accumulator 隔离，按压期间导航暂停
+- 真机验收：单击 50 次、长按 2s、residual accumulator 专项、press+rotate ×10、
+  ADC margin、10 分钟混合压力稳定性
+
+退出条件：host tests 通过；ESP-IDF build 通过；CW/CCW/PRESS 计数与事件一一对应；
+10 分钟无 crash/watchdog/drop、heap 恒定；press ADC 阈值余量充分。当前条件已满足。
+
+## V0.7 Wi-Fi / 时间
 
 - Wi-Fi service
 - 网络状态事件
 - 时间同步和基础时间显示
 
-## V0.7 PC 通信
+## V0.8 PC 通信
 
 - 传输协议和版本协商
 - 调试、资源或消息通道
 
-## V0.8 AI
+## V0.9 AI
 
 - AI service 接口和异步消息流
 - 对话状态、错误处理和隐私策略
