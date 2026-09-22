@@ -1,6 +1,7 @@
 #ifndef PET_ASSET_PROVIDER_H
 #define PET_ASSET_PROVIDER_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -12,6 +13,8 @@ typedef struct {
     size_t width;
     size_t height;
     size_t stride_pixels;
+    bool has_transparent_color;
+    uint16_t transparent_color;
 } pet_bitmap_t;
 
 typedef struct {

@@ -130,6 +130,65 @@ Runtime calls `pet_backlight_wake()` after the first rendered frame and
 `pet_backlight_sleep()` when the shared App/Core enters `SLEEP`. Rotary code never
 controls the backlight directly.
 
+## V0.7 Wi-Fi / SNTP / Clock
+
+The ESP32 firmware now includes a background Wi-Fi STA backend, SNTP time sync, and a
+platform-neutral Time Service that feeds a `HH:MM` clock overlay in the shared Renderer.
+
+### Credentials
+
+Real credentials never enter Git. The repository ships a template
+(`wifi_config.example.h`); copy it to `wifi_config.local.h` in the same directory and
+fill in your SSID/password:
+
+```sh
+cp platform/esp32/main/wifi_config.example.h platform/esp32/main/wifi_config.local.h
+# edit the file; if build/ already exists, run reconfigure once
+idf.py reconfigure build
+```
+
+`wifi_config.local.h` is listed in `.gitignore`. Without it the firmware logs
+`Wi-Fi disabled: no local credentials (wifi_config.local.h)` and the pet keeps running
+fully offline. Passwords and real SSIDs are never printed.
+
+### Wi-Fi backend
+
+`pet_esp32_wifi_start()` initializes the STA interface and returns immediately; the
+ESP-IDF event task drives everything in the background:
+
+- `WIFI_EVENT_STA_START` -> `WiFi connecting...`
+- `IP_EVENT_STA_GOT_IP` -> `IP acquired` + SNTP start (once per boot)
+- `WIFI_EVENT_STA_DISCONNECTED` -> `WiFi disconnected` + reconnect backoff
+
+Reconnect uses a one-shot `esp_timer` with exponential backoff capped at 30 s
+(1s -> 2s -> ... -> 30s) and resets on `GOT_IP`; there is no busy loop, and Wi-Fi
+failure never blocks the frame loop. The shared layer only sees a
+`pet_network_provider_t` snapshot (`DISCONNECTED / CONNECTING / CONNECTED / ERROR`).
+
+### SNTP and Time Service
+
+On the first `GOT_IP` the firmware starts the ESP-NETIF SNTP wrapper
+(`esp_netif_sntp_init`, `NETIF_SNTP_EVENT`) with `pool.ntp.org`; a sync callback logs
+`Time synchronized: HH:MM`. The shared `pet_time_service_t` reads `time()` +
+`localtime_r` and marks the snapshot invalid until the epoch passes 2021-01-01, so the
+Renderer shows `--:--` before the first successful sync and `HH:MM` afterwards. The
+runtime refreshes the cached snapshot once per second; the Renderer never queries the
+clock itself and only consumes the cached value.
+
+### Timezone
+
+The timezone is a POSIX TZ string, centralized as the `PET_TIMEZONE` build option
+(default `CST-8`):
+
+```sh
+idf.py -D PET_TIMEZONE=CST-8 build
+```
+
+Note the POSIX sign convention: `CST-8` means **UTC+8** (the offset sign is inverted
+compared to the common `UTC+8` notation). The timezone is applied once during ESP32
+time service initialization via `setenv("TZ", ...)` + `tzset()`; the Renderer never
+knows about it.
+
 ## V0.5 LCD Performance Work
 
 Every candidate config below ran the full animation demo on target for at least 60

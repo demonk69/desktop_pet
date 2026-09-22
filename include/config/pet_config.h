@@ -10,6 +10,7 @@
 
 #define PET_GPIO_HW_VERIFY (-1)
 #define PET_VALUE_HW_VERIFY (0U)
+#define PET_CONFIG_DEFAULT_INACTIVITY_SLEEP_MS 15000U
 
 typedef enum {
     PET_LCD_BUS_SPI = 0,

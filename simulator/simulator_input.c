@@ -58,6 +58,8 @@ const char *simulator_event_name(const pet_event_t *event)
         return "BUTTON";
     case PET_EVENT_HAPPY:
         return "HAPPY";
+    case PET_EVENT_BLINK:
+        return "BLINK";
     case PET_EVENT_SLEEP:
         return "SLEEP";
     case PET_EVENT_WAKE:

@@ -14,33 +14,17 @@ static void enter_state(pet_core_t *core, pet_state_t state)
 {
     core->state = state;
     core->state_elapsed_ms = 0U;
-    if (state != PET_STATE_IDLE) {
-        core->idle_elapsed_ms = 0U;
-    }
     core->requested_animation = state_animations[state];
     core->animation_request_pending = true;
 }
 
 pet_status_t pet_core_init(pet_core_t *core, const pet_core_config_t *config)
 {
-    if (core == NULL || config == NULL || config->boot_duration_ms == 0U ||
-        config->idle_action_interval_ms == 0U) {
+    if (core == NULL || config == NULL || config->boot_duration_ms == 0U) {
         return PET_STATUS_INVALID_ARGUMENT;
     }
-    core->idle_elapsed_ms = 0U;
-    core->idle_action_sequence = 0U;
     enter_state(core, PET_STATE_BOOT);
     return PET_STATUS_OK;
-}
-
-static void run_idle_action(pet_core_t *core)
-{
-    static const pet_state_t sequence[] = {
-        PET_STATE_BLINK, PET_STATE_LOOK_LEFT, PET_STATE_BLINK, PET_STATE_LOOK_RIGHT
-    };
-    pet_state_t next = sequence[core->idle_action_sequence % 4U];
-    core->idle_action_sequence++;
-    enter_state(core, next);
 }
 
 bool pet_core_handle_event(pet_core_t *core,
@@ -58,11 +42,6 @@ bool pet_core_handle_event(pet_core_t *core,
         if (core->state == PET_STATE_BOOT &&
             core->state_elapsed_ms >= config->boot_duration_ms) {
             enter_state(core, PET_STATE_IDLE);
-        } else if (core->state == PET_STATE_IDLE) {
-            core->idle_elapsed_ms += event->data.timer_delta_ms;
-            if (core->idle_elapsed_ms >= config->idle_action_interval_ms) {
-                run_idle_action(core);
-            }
         }
         return true;
     case PET_EVENT_BUTTON:
@@ -76,6 +55,11 @@ bool pet_core_handle_event(pet_core_t *core,
     case PET_EVENT_HAPPY:
         if (core->state != PET_STATE_SLEEP) {
             enter_state(core, PET_STATE_HAPPY);
+        }
+        return true;
+    case PET_EVENT_BLINK:
+        if (core->state == PET_STATE_IDLE) {
+            enter_state(core, PET_STATE_BLINK);
         }
         return true;
     case PET_EVENT_LOOK:

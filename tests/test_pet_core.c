@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 
+#include "config/pet_config.h"
 #include "pet/pet_core.h"
 
 static pet_event_t timer_event(uint32_t delta_ms)
@@ -14,7 +15,9 @@ static pet_event_t timer_event(uint32_t delta_ms)
 int main(void)
 {
     pet_core_t core;
-    pet_core_config_t config = { 500U, 1000U };
+    pet_core_config_t config = { .boot_duration_ms = 500U,
+                                 .inactivity_sleep_ms =
+                                     PET_CONFIG_DEFAULT_INACTIVITY_SLEEP_MS };
     pet_animation_id_t animation;
     pet_event_t event;
 
@@ -31,6 +34,10 @@ int main(void)
     assert(pet_core_state(&core) == PET_STATE_IDLE);
 
     event = timer_event(1000U);
+    assert(pet_core_handle_event(&core, &config, &event));
+    assert(pet_core_state(&core) == PET_STATE_IDLE);
+
+    event = (pet_event_t){ .type = PET_EVENT_BLINK };
     assert(pet_core_handle_event(&core, &config, &event));
     assert(pet_core_state(&core) == PET_STATE_BLINK);
     event = (pet_event_t){ .type = PET_EVENT_ANIMATION_DONE,

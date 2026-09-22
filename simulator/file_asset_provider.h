@@ -16,6 +16,8 @@ typedef struct {
     uint16_t *pixels;
     size_t width;
     size_t height;
+    bool has_transparent_color;
+    uint16_t transparent_color;
     bool loaded;
 } pet_file_asset_entry_t;
 

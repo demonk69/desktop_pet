@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define PET_EVENT_FLAG_AUTONOMOUS (1U << 0U)
+
 typedef enum {
     PET_EVENT_NONE = 0,
     PET_EVENT_TIMER,
@@ -11,6 +13,7 @@ typedef enum {
     PET_EVENT_MESSAGE,
     PET_EVENT_NETWORK,
     PET_EVENT_HAPPY,
+    PET_EVENT_BLINK,
     PET_EVENT_LOOK,
     PET_EVENT_NAV_NEXT,
     PET_EVENT_NAV_PREV,
@@ -29,6 +32,7 @@ typedef enum {
 typedef struct {
     pet_event_type_t type;
     uint32_t timestamp_ms;
+    uint32_t flags;
     union {
         uint32_t timer_delta_ms;
         int32_t button_id;

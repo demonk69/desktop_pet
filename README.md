@@ -121,6 +121,8 @@ idf.py -p /dev/ttyACM0 monitor
 `flash` 只写入构建产物，不需要 `erase-flash`。当前固件持续运行共享 App/Animation/Renderer，
 使用 compiled assets 播放桌宠动画并定期输出性能统计。默认显示链路为 40 MHz SPI、
 DMA 开启、4096-byte 内部 staging；15 秒无用户输入后由 shared App 投递 sleep event。
+V0.7 增加后台 Wi-Fi/SNTP 和顶部 HH:MM 时钟；`PET_TIMEZONE` 使用 POSIX TZ 字符串，
+默认 `CST-8` 表示 UTC+8，POSIX offset 符号方向与常见 `UTC+8` 写法相反。
 LCD 参数可用编译变量覆盖用于 benchmark：
 
 ```sh

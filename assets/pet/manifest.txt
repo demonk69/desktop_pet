@@ -11,3 +11,9 @@
 10 sleep/sleep_0.ppm
 11 sleep/sleep_1.ppm
 12 idle/idle_1.ppm
+13 test/test_character.ppm 0xF81F
+14 test/test_character_idle_1.ppm 0xF81F
+15 test/test_character_blink_half.ppm 0xF81F
+16 test/test_character_blink_closed.ppm 0xF81F
+17 test/test_character_happy_0.ppm 0xF81F
+18 test/test_character_happy_1.ppm 0xF81F

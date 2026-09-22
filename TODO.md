@@ -50,7 +50,12 @@
 - [x] press 接入：GA ADC LOW/MID/HIGH classifier + press 状态机 → PET_EVENT_BUTTON（INTERACT）
 - [x] press 真机验收：单击 50/长按 2s/residual accumulator 专项/press+rotate ×10/10 分钟稳定性
 - [x] ADC margin diagnostic：HIGH 3064~3123、MID 1504~1540、LOW 0 mV，阈值余量确认
-- [ ] inactivity timeout 从测试常量改为配置项
+- [x] inactivity timeout 从测试常量改为集中配置项（`pet_core_config_t.inactivity_sleep_ms`，默认 15s）
+- [x] 平台无关 Time Service（snapshot + system backend + epoch 有效性）与 Network provider
+- [x] ESP32 Wi-Fi STA backend：后台连接、backoff 重连、GOT_IP 后启动 ESP-NETIF SNTP
+- [x] Renderer HH:MM 时钟 overlay（未同步 `--:--`），runtime 每秒缓存 snapshot
+- [x] `PET_TIMEZONE` POSIX TZ 配置与 `wifi_config.local.h` 本地凭据机制
+- [ ] V0.7 真机验收：正常 AP / 离线启动 / AP 中断恢复 / sleep-wake 回归 / 30 分钟稳定性
 - [x] 实现 compiled asset provider 和受控真机动画循环
 - [x] 连续运行 305 秒，确认 internal heap/PSRAM 无持续下降
 - [x] 完成 LCD 性能矩阵实测并固化为 40 MHz + DMA + 4 KiB staging 默认值

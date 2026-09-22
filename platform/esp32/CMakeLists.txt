@@ -43,6 +43,8 @@ set(PET_BACKLIGHT_DEFAULT_PERCENT "100" CACHE STRING
     "Backlight brightness after the first rendered frame")
 set(PET_BACKLIGHT_SLEEP_PERCENT "0" CACHE STRING
     "Backlight brightness while the pet is sleeping")
+set(PET_TIMEZONE "CST-8" CACHE STRING
+    "POSIX TZ string for local time (CST-8 means UTC+8; POSIX offset sign is inverted)")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 idf_build_set_property(MINIMAL_BUILD ON)
 project(desktop_pet_esp32 VERSION 0.4.0)

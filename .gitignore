@@ -4,3 +4,4 @@
 /platform/esp32/sdkconfig.old
 /pet_simulator.ppm
 compile_commands.json
+/platform/esp32/main/wifi_config.local.h

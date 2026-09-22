@@ -24,7 +24,7 @@ typedef struct {
 pet_status_t pet_renderer_init(pet_renderer_t *renderer, pet_display_t *display,
                                const pet_renderer_theme_t *theme);
 void pet_renderer_set_asset_provider(pet_renderer_t *renderer,
-                                     const pet_asset_provider_t *assets);
+                                      const pet_asset_provider_t *assets);
 pet_status_t pet_renderer_render(pet_renderer_t *renderer,
                                  const pet_app_snapshot_t *snapshot);
 

@@ -71,11 +71,18 @@
 退出条件：host tests 通过；ESP-IDF build 通过；CW/CCW/PRESS 计数与事件一一对应；
 10 分钟无 crash/watchdog/drop、heap 恒定；press ADC 阈值余量充分。当前条件已满足。
 
-## V0.7 Wi-Fi / 时间
+## V0.7 Wi-Fi / Time / Clock（进行中）
 
-- Wi-Fi service
-- 网络状态事件
-- 时间同步和基础时间显示
+- 平台无关 Time Service（snapshot + system backend + epoch 有效性）
+- 平台无关 Network provider（状态快照，无硬件事件泄漏）
+- ESP32 Wi-Fi STA backend：后台连接、断线 backoff 重连、GOT_IP 后启动 ESP-NETIF SNTP
+- Renderer HH:MM 时钟 overlay（未同步显示 `--:--`），runtime 每秒缓存 snapshot
+- `PET_TIMEZONE` POSIX TZ 配置；`wifi_config.local.h` 本地凭据（不入 Git）
+- inactivity timeout 从测试常量改为集中配置项
+
+退出条件：Wi-Fi 连接与自动重连正常；SNTP 同步成功；离线启动不阻塞桌宠；
+HH:MM 正确且未同步不显示错误时间；PC simulator 与 Host tests 正常；旋钮/按压/
+sleep-wake 无回归；连续运行 30 分钟稳定。
 
 ## V0.8 PC 通信
 

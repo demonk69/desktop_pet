@@ -140,7 +140,6 @@ Dirty rectangle 暂不实现：Renderer 没有 previous frame、changed region �
 需要先增加极小的平台无关 dirty-bounds 接口。
 
 Rotary backend 面向两路数字信号 GA/BB，并独占 GA 的 ADC1 CH3 模拟通道。架构为：
-
 ```text
 GPIO ISR (双沿, 只采集 raw AB + 时间戳)
         ↓  FreeRTOS raw edge queue
@@ -158,6 +157,32 @@ ISR 内不做解码、不采样 ADC、不提交事件。GA falling edge 到达�
 暂停，press session 与 rotary 残量隔离，释放后按当前电平 resync。`INTERACT` 复用共享的
 `PET_EVENT_BUTTON`（PC SPACE 与 ESP32 PRESS 同事件），Core 在 IDLE 下进入 HAPPY、SLEEP 下
 唤醒回 IDLE。ADC classifier 与 GPIO ISR 属于 ESP32 platform，不进入 shared Core。
+
+## Network 与 Time Service
+
+```text
+ESP32 Wi-Fi backend (esp_wifi/esp_netif/esp_event, 后台 event task)
+        ├── STA 连接 / 断线 / backoff 重连（1s→…→30s）
+        ├── GOT_IP 后启动 ESP-NETIF SNTP wrapper（pool.ntp.org）
+        └── 平台无关 network snapshot（DISCONNECTED/CONNECTING/CONNECTED/ERROR）
+        ↓
+共享 pet_time_service_t：time() + localtime_r（尊重 TZ 环境变量），
+epoch < 2021-01-01 判定 time_valid=false（ESP32 上电时间从 0 开始，
+SNTP 同步后自动转 valid，shared 层不接触 SNTP）
+        ↓
+runtime 每秒更新一次 cached pet_time_snapshot_t
+        ↓
+Renderer 只消费 cached snapshot，绘制顶部 HH:MM；invalid 时绘制 "--:--"
+```
+
+Wi-Fi 是后台 service：初始化立即返回，事件在 ESP-IDF event task 处理，连接失败按
+backoff 重试，绝不影响 Pet Core / 动画 / rotary / sleep-wake。Pet Core 不知道 SSID、
+IP 或 esp_netif。时区是 `PET_TIMEZONE` POSIX TZ 字符串（`CST-8` = UTC+8，符号与常见
+写法相反），只在 platform 初始化阶段 `setenv("TZ", ...)+tzset()`，Renderer 不知时区。
+
+Shared `services/` 当前包含 `network`（状态枚举 + provider 快照接口）与 `time`（Time
+Service + `HH:MM` 格式化），均无 ESP-IDF 依赖；PC simulator 使用同一个 system Time
+Service，暂不安装 network provider；Host tests 使用 fake backend，不依赖真实网络或时钟。
 
 ## 事件架构
 

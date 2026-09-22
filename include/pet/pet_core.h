@@ -21,14 +21,12 @@ typedef enum {
 
 typedef struct {
     uint32_t boot_duration_ms;
-    uint32_t idle_action_interval_ms;
+    uint32_t inactivity_sleep_ms;
 } pet_core_config_t;
 
 typedef struct {
     pet_state_t state;
     uint32_t state_elapsed_ms;
-    uint32_t idle_elapsed_ms;
-    uint32_t idle_action_sequence;
     pet_animation_id_t requested_animation;
     bool animation_request_pending;
 } pet_core_t;

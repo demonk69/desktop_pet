@@ -16,6 +16,9 @@
 #include "pet_esp32_rotary.h"
 #include "pet_esp32_rotary_hw_diag.h"
 #include "pet_esp32_runtime.h"
+#include "pet_esp32_time.h"
+#include "pet_esp32_wifi.h"
+#include "services/pet_time_service.h"
 #include "ui/pet_renderer.h"
 
 static const char *TAG = "desktop_pet";
@@ -104,7 +107,10 @@ void app_main(void)
     static pet_app_t app;
     static pet_compiled_asset_provider_t assets;
     static pet_renderer_t renderer;
+    static pet_time_service_t time_service;
+    static pet_network_provider_t network_provider;
     const pet_renderer_theme_t theme = { 0x18C3U, 0xFEC0U, 0x2104U, 0xF9A6U };
+    pet_status_t wifi_status;
 
     ESP_LOGI(TAG, "Desktop Pet ESP32");
     ESP_LOGI(TAG, "MCU: ESP32-S3");
@@ -171,11 +177,19 @@ void app_main(void)
     stop_on_error("App init", pet_app_init(&app, &board.pet.app));
     stop_on_error("Rotary create", pet_esp32_rotary_create(&rotary_backend, &board));
     stop_on_error("Rotary start", pet_esp32_rotary_start(&rotary_backend));
+    stop_on_error("Timezone init", pet_esp32_time_init_timezone());
+    stop_on_error("Time service init", pet_time_service_init_system(&time_service));
+    wifi_status = pet_esp32_wifi_start(&network_provider);
+    if (wifi_status != PET_STATUS_OK) {
+        ESP_LOGW(TAG, "Wi-Fi start failed: status=%d; continuing offline",
+                 (int)wifi_status);
+    }
     stop_on_error("Compiled assets init", pet_compiled_asset_provider_init(&assets));
     stop_on_error("Renderer init", pet_renderer_init(&renderer, &display, &theme));
     pet_renderer_set_asset_provider(&renderer,
                                     pet_compiled_asset_provider_interface(&assets));
     ESP_LOGI(TAG, "Renderer init OK");
     stop_on_error("Runtime", pet_esp32_runtime_run(&app, &renderer, &display_backend,
-                                                   &backlight, &rotary_backend));
+                                                   &backlight, &rotary_backend,
+                                                   &time_service));
 }

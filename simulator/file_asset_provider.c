@@ -120,8 +120,14 @@ static pet_status_t get_bitmap(void *context, pet_asset_id_t asset_id,
             if (status != PET_STATUS_OK) {
                 return status;
             }
-            *bitmap = (pet_bitmap_t){ entry->pixels, entry->width, entry->height,
-                                      entry->width };
+            *bitmap = (pet_bitmap_t){ .pixels = entry->pixels,
+                                      .width = entry->width,
+                                      .height = entry->height,
+                                      .stride_pixels = entry->width,
+                                      .has_transparent_color =
+                                          entry->has_transparent_color,
+                                      .transparent_color =
+                                          entry->transparent_color };
             return PET_STATUS_OK;
         }
     }
@@ -159,11 +165,13 @@ pet_status_t pet_file_asset_provider_init(pet_file_asset_provider_t *provider,
     while (fgets(line, sizeof(line), manifest) != NULL) {
         unsigned int id;
         char path[PET_FILE_ASSET_PATH_SIZE];
+        char transparent_text[32];
         pet_file_asset_entry_t *entry;
         if (line[0] == '#' || isspace((unsigned char)line[0])) {
             continue;
         }
-        if (sscanf(line, "%u %255s", &id, path) != 2 || id == 0U ||
+        int fields = sscanf(line, "%u %255s %31s", &id, path, transparent_text);
+        if (fields < 2 || id == 0U ||
             provider->entry_count >= PET_FILE_ASSET_CAPACITY) {
             (void)fclose(manifest);
             pet_file_asset_provider_destroy(provider);
@@ -172,6 +180,17 @@ pet_status_t pet_file_asset_provider_init(pet_file_asset_provider_t *provider,
         entry = &provider->entries[provider->entry_count++];
         entry->id = (pet_asset_id_t)id;
         (void)snprintf(entry->path, sizeof(entry->path), "%s", path);
+        if (fields == 3) {
+            char *end;
+            unsigned long color = strtoul(transparent_text, &end, 0);
+            if (end == transparent_text || *end != '\0' || color > 0xFFFFUL) {
+                (void)fclose(manifest);
+                pet_file_asset_provider_destroy(provider);
+                return PET_STATUS_IO_ERROR;
+            }
+            entry->has_transparent_color = true;
+            entry->transparent_color = (uint16_t)color;
+        }
     }
     (void)fclose(manifest);
     if (provider->entry_count == 0U) {

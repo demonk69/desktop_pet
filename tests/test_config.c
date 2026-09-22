@@ -18,6 +18,14 @@ int main(void)
     pet_config_set_development_defaults(&config);
     config.hardware.rotation = 4U;
     assert(pet_config_validate(&config) == PET_STATUS_INVALID_ARGUMENT);
+    pet_config_set_development_defaults(&config);
+    config.app.behavior.auto_blink_min_interval_ms =
+        config.app.behavior.auto_blink_max_interval_ms + 1U;
+    assert(pet_config_validate(&config) == PET_STATUS_INVALID_ARGUMENT);
+    pet_config_set_development_defaults(&config);
+    config.app.behavior.idle_look_min_interval_ms =
+        config.app.behavior.idle_look_max_interval_ms + 1U;
+    assert(pet_config_validate(&config) == PET_STATUS_INVALID_ARGUMENT);
     assert(pet_config_validate(NULL) == PET_STATUS_INVALID_ARGUMENT);
 
     (void)printf("test_config: ok\n");

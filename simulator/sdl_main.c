@@ -9,6 +9,7 @@
 #include "file_asset_provider.h"
 #include "pet/pet_app.h"
 #include "sdl_display.h"
+#include "services/pet_time_service.h"
 #include "simulator_input.h"
 #include "ui/pet_renderer.h"
 
@@ -69,6 +70,9 @@ int main(int argc, char **argv)
     pet_file_asset_provider_t file_assets = { 0 };
     pet_renderer_t renderer;
     pet_renderer_theme_t theme = { 0x18C3U, 0xFEC0U, 0x2104U, 0xF9A6U };
+    pet_time_service_t time_service;
+    pet_time_snapshot_t time_snapshot = { 0 };
+    uint32_t last_time_update_ms = 0;
     pet_state_t previous_state = PET_STATE_COUNT;
     pet_animation_id_t previous_animation = PET_ANIM_COUNT;
     uint64_t previous_time;
@@ -96,6 +100,12 @@ int main(int argc, char **argv)
     }
     pet_renderer_set_asset_provider(&renderer,
                                     pet_file_asset_provider_interface(&file_assets));
+    if (pet_time_service_init_system(&time_service) != PET_STATUS_OK) {
+        (void)fprintf(stderr, "time service initialization failed\n");
+        pet_file_asset_provider_destroy(&file_assets);
+        sdl_display_destroy(&sdl_backend);
+        return 1;
+    }
     print_help();
     previous_time = SDL_GetTicks64();
 
@@ -124,6 +134,11 @@ int main(int argc, char **argv)
         }
 
         pet_app_update(&app, delta_ms);
+        if (app.now_ms - last_time_update_ms >= 1000U) {
+            last_time_update_ms = app.now_ms;
+            (void)pet_time_service_get_snapshot(&time_service, &time_snapshot);
+            pet_app_set_time_snapshot(&app, &time_snapshot);
+        }
         snapshot = pet_app_snapshot(&app);
         if (snapshot.state != previous_state) {
             (void)printf("[PET] state: %s -> %s\n", pet_state_name(previous_state),

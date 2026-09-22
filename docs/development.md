@@ -150,3 +150,12 @@ offset 和 ST7789 window 属于 ESP32 Display backend，不能放入 Renderer。
 3. 网络类 service 不得阻塞主事件循环；未来采用 SDK task/callback 时保留事件边界。
 4. 为协议解析和错误路径添加 PC 测试。
 5. 更新功能、架构和配置文档。
+
+## Wi-Fi 凭据与安全
+
+1. 真实 SSID/password 只能放在 `platform/esp32/main/wifi_config.local.h`，该文件已被
+   `.gitignore` 忽略；仓库只保留 `wifi_config.example.h` 模板。
+2. 提交前用 `git status` / `git diff` 确认没有真实凭据或 token 被跟踪。
+3. 日志不得打印 password 或真实 SSID。
+4. 时区使用 `PET_TIMEZONE` POSIX TZ 字符串（`CST-8` 表示 UTC+8，POSIX offset
+   符号方向与常见 `UTC+8` 写法相反），只在 platform 初始化阶段设置，Renderer 不得感知时区。

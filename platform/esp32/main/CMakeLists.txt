@@ -10,9 +10,11 @@ idf_component_register(
         "pet_esp32_rotary_hw_diag.c"
         "pet_esp32_runtime.c"
         "pet_esp32_time.c"
+        "pet_esp32_wifi.c"
     INCLUDE_DIRS "."
     REQUIRES pet_shared
-    PRIV_REQUIRES esp_adc esp_driver_gpio esp_driver_ledc esp_driver_spi esp_psram esp_timer heap freertos
+    PRIV_REQUIRES esp_adc esp_driver_gpio esp_driver_ledc esp_driver_spi esp_event
+        esp_netif esp_psram esp_timer esp_wifi heap freertos nvs_flash
 )
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
@@ -40,4 +42,12 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     PET_BACKLIGHT_PWM_RESOLUTION=${PET_BACKLIGHT_PWM_RESOLUTION}
     PET_BACKLIGHT_DEFAULT_PERCENT=${PET_BACKLIGHT_DEFAULT_PERCENT}
     PET_BACKLIGHT_SLEEP_PERCENT=${PET_BACKLIGHT_SLEEP_PERCENT}
+    PET_TIMEZONE=\"${PET_TIMEZONE}\"
 )
+
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_LIST_DIR}/wifi_config.local.h")
+
+if(EXISTS "${CMAKE_CURRENT_LIST_DIR}/wifi_config.local.h")
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE PET_WIFI_CONFIG_LOCAL=1)
+endif()

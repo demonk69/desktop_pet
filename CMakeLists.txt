@@ -15,9 +15,11 @@ add_library(pet_core
     app/pet/pet_app.c
     animation/pet_animation.c
     animation/pet_builtin_animations.c
+    behavior/pet_behavior.c
     core/pet_core.c
     core/pet_event_queue.c
     config/pet_config.c
+    ui/pet_scene.c
 )
 target_include_directories(pet_core PUBLIC include)
 target_compile_options(pet_core PRIVATE -Wall -Wextra -Wpedantic)
@@ -28,8 +30,17 @@ add_library(pet_ui
     hal/backlight.c
 )
 target_include_directories(pet_ui PUBLIC include)
-target_link_libraries(pet_ui PUBLIC pet_core)
+target_link_libraries(pet_ui PUBLIC pet_core pet_services)
 target_compile_options(pet_ui PRIVATE -Wall -Wextra -Wpedantic)
+
+add_library(pet_services
+    services/time/pet_time_service.c
+    services/time/pet_clock_format.c
+    services/network/pet_network.c
+)
+target_include_directories(pet_services PUBLIC include)
+target_link_libraries(pet_services PUBLIC pet_core)
+target_compile_options(pet_services PRIVATE -Wall -Wextra -Wpedantic)
 
 if(PET_BUILD_DRIVER_STUBS)
     add_library(pet_driver_stubs
@@ -97,7 +108,7 @@ if(PET_BUILD_TESTS)
     function(add_pet_test test_name source)
         add_executable(${test_name} ${source})
         target_include_directories(${test_name} PRIVATE include)
-        target_link_libraries(${test_name} PRIVATE pet_core)
+        target_link_libraries(${test_name} PRIVATE pet_core pet_services)
         target_compile_options(${test_name} PRIVATE -Wall -Wextra -Wpedantic)
         add_test(NAME ${test_name} COMMAND ${test_name})
     endfunction()
@@ -106,7 +117,10 @@ if(PET_BUILD_TESTS)
     add_pet_test(test_animation tests/test_animation.c)
     add_pet_test(test_event_queue tests/test_event_queue.c)
     add_pet_test(test_config tests/test_config.c)
+    add_pet_test(test_behavior_manager tests/test_behavior_manager.c)
     add_pet_test(test_app_integration tests/test_app_integration.c)
+    add_pet_test(test_scene_manager tests/test_scene_manager.c)
+    add_pet_test(test_time_service tests/test_time_service.c)
 
     if(PET_BUILD_SIMULATOR)
         add_executable(test_renderer_integration tests/test_renderer_integration.c)

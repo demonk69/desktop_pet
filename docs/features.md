@@ -43,10 +43,18 @@
 - Core `SLEEP + INTERACT` 唤醒语义；PC SPACE 与 ESP32 PRESS 共享同一 interaction 事件
 - ESP32 GPIO7 LEDC PWM Backlight HAL backend，支持 default/sleep 亮度
 - V0.6 真机验收：press+rotate ×10、ADC margin、10 分钟混合压力稳定性全部通过
+- 平台无关 Time Service：`pet_time_snapshot_t`（valid/hour/minute/second），system
+  backend 为 `time()`+`localtime_r`，epoch 阈值判定有效性
+- 平台无关 Network provider：`DISCONNECTED/CONNECTING/CONNECTED/ERROR` 状态快照
+- ESP32 Wi-Fi STA backend：后台连接、断线 backoff 重连（1s→…→30s）、GOT_IP 后自动
+  启动 ESP-NETIF SNTP（pool.ntp.org）
+- Renderer 顶部 HH:MM 时钟 overlay（未同步显示 `--:--`），只消费 runtime 每秒缓存的
+  snapshot；时区为 `PET_TIMEZONE` POSIX TZ 配置
+- `wifi_config.local.h` 本地凭据机制（模板入库、真实凭据 .gitignore）
 
 ## 开发中
 
-- 无；V0.6 rotary navigation + press/INTERACT 已完成
+- V0.7 真机验收：离线启动 / AP 中断恢复 / 30 分钟稳定性待测
 
 ## 计划中
 
